@@ -4,6 +4,7 @@ import { PeriodScoreCard } from './components/PeriodScoreCard'
 import { TimelineEventsList } from './components/TimelineEventsList'
 import { LeaderboardTable } from './components/LeaderboardTable'
 import { GoalkeeperBattleCard } from './components/GoalkeeperBattleCard'
+import { SpecialTeamsCard } from './components/SpecialTeamsCard'
 import { MatchPreviewExport } from './components/MatchPreviewExport'
 import { TeamScheduleView } from './components/TeamScheduleView'
 import { TeamRosterView } from './components/TeamRosterView'
@@ -21,9 +22,9 @@ import type {
   SalibandyTeamFixture,
 } from './types/salibandy'
 import { parseIncomingCrossRepoQuery } from './types/contracts'
-import { Loader2, Calendar, Award, Shield, Users, Share2, Swords } from 'lucide-react'
+import { Loader2, Calendar, Award, Shield, Users, Share2, Swords, Zap } from 'lucide-react'
 
-type TabType = 'match' | 'points' | 'goalies' | 'schedule' | 'roster' | 'opponents' | 'export'
+type TabType = 'match' | 'points' | 'goalies' | 'special_teams' | 'schedule' | 'roster' | 'opponents' | 'export'
 
 export function App() {
   const [match, setMatch] = useState<SalibandyMatchDetail | null>(null)
@@ -116,6 +117,17 @@ export function App() {
             Maalivahdit
           </button>
           <button
+            onClick={() => setActiveTab('special_teams')}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
+              activeTab === 'special_teams'
+                ? 'bg-[#3A506B] text-[#6FFFE9] shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 text-[#F59E0B]" />
+            Erikoistilanteet (YV/AV)
+          </button>
+          <button
             onClick={() => setActiveTab('schedule')}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
               activeTab === 'schedule'
@@ -197,6 +209,17 @@ export function App() {
               <div className="space-y-6">
                 <GoalkeeperBattleCard
                   goalkeepers={match.goalkeepers}
+                  homeTeamName={match.homeTeamName}
+                  awayTeamName={match.awayTeamName}
+                />
+              </div>
+            )}
+
+            {activeTab === 'special_teams' && (
+              <div className="space-y-6">
+                <SpecialTeamsCard
+                  goals={match.goals}
+                  penalties={match.penalties}
                   homeTeamName={match.homeTeamName}
                   awayTeamName={match.awayTeamName}
                 />
