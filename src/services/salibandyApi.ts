@@ -3,20 +3,29 @@
  * Base: https://salibandy-api.torneopal.net/taso/rest
  */
 
-import type { SalibandyMatchDetail, SalibandyGoalEvent, SalibandyPenaltyEvent, SalibandyPeriodScore, SalibandyPlayerLeader } from '../types/salibandy'
+import type {
+  SalibandyMatchDetail,
+  SalibandyGoalEvent,
+  SalibandyPenaltyEvent,
+  SalibandySaveEvent,
+  SalibandyPeriodScore,
+  SalibandyPlayerLeader,
+  SalibandyRosterPlayer,
+  SalibandyTeamFixture,
+} from '../types/salibandy'
 
 const API_BASE = 'https://salibandy-api.torneopal.net/taso/rest'
 const SALIBANDY_KEY = 'zsn3anknxzcfzc23k53jqdcd4pymutsf'
 
+const reqHeaders = {
+  Accept: `json/${SALIBANDY_KEY}`,
+  Referer: 'https://tulospalvelu.salibandy.fi/',
+}
+
 export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMatchDetail | null> {
   try {
     const url = `${API_BASE}/getMatch?match_id=${encodeURIComponent(matchId)}`
-    const res = await fetch(url, {
-      headers: {
-        'Accept': `json/${SALIBANDY_KEY}`,
-        'Referer': 'https://tulospalvelu.salibandy.fi/',
-      },
-    })
+    const res = await fetch(url, { headers: reqHeaders })
 
     if (!res.ok) return null
     const data = await res.json()
@@ -39,6 +48,7 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
     for (const ev of rawEvents) {
       if (ev.code === 'maali') {
         const key = `${ev.time}_${ev.team}`
+        const fiText = String(ev.code_fi || '').toLowerCase()
         goals.push({
           eventId: String(ev.event_id || Math.random()),
           code: 'maali',
@@ -51,6 +61,9 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
           scoreHome: Number(ev.s_A || 0),
           scoreAway: Number(ev.s_B || 0),
           description: ev.description_text || ev.code_fi,
+          isPowerplayGoal: fiText.includes('yv') || fiText.includes('ylivoima'),
+          isShorthandedGoal: fiText.includes('av') || fiText.includes('alivoima'),
+          isEmptyNetGoal: fiText.includes('tm') || fiText.includes('tyhjä'),
         })
       }
     }
@@ -58,7 +71,7 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
     // 2. Parse Penalties
     const penalties: SalibandyPenaltyEvent[] = []
     for (const ev of rawEvents) {
-      if (ev.code === '2min' || ev.code === '5min' || ev.code?.includes('rangaistus')) {
+      if (ev.code === '2min' || ev.code === '5min' || ev.code === '2+2min' || ev.code?.includes('rangaistus')) {
         penalties.push({
           eventId: String(ev.event_id || Math.random()),
           code: (ev.code as any) || '2min',
@@ -73,7 +86,46 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
       }
     }
 
-    // 3. Compute Period Scores
+    // 3. Parse Goalkeeper Saves
+    const saves: SalibandySaveEvent[] = []
+    let homeSaves = 0
+    let awaySaves = 0
+    let homeGoalieName = 'Maalivahti'
+    let awayGoalieName = 'Maalivahti'
+
+    for (const ev of rawEvents) {
+      if (ev.code === 'torjunta') {
+        const isHome = ev.team === 'A'
+        if (isHome) {
+          homeSaves++
+          if (ev.player_name) homeGoalieName = ev.player_name
+        } else {
+          awaySaves++
+          if (ev.player_name) awayGoalieName = ev.player_name
+        }
+        saves.push({
+          eventId: String(ev.event_id || Math.random()),
+          code: 'torjunta',
+          time: String(ev.time || '00:00'),
+          period: String(ev.period || '1'),
+          goalieName: String(ev.player_name || 'Maalivahti'),
+          team: isHome ? 'home' : 'away',
+        })
+      }
+    }
+
+    const homeConceded = goals.filter(g => g.team === 'away').length
+    const awayConceded = goals.filter(g => g.team === 'home').length
+
+    const homeSavePct = homeSaves + homeConceded > 0
+      ? `${((homeSaves / (homeSaves + homeConceded)) * 100).toFixed(1)}%`
+      : '100%'
+
+    const awaySavePct = awaySaves + awayConceded > 0
+      ? `${((awaySaves / (awaySaves + awayConceded)) * 100).toFixed(1)}%`
+      : '100%'
+
+    // 4. Compute Period Scores
     const periods: SalibandyPeriodScore[] = []
     const p1Home = Number(m.p1s_A || (goals.filter(g => g.period === '1' && g.team === 'home').length))
     const p1Away = Number(m.p1s_B || (goals.filter(g => g.period === '1' && g.team === 'away').length))
@@ -87,6 +139,9 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
     const p3Away = Number(m.p3s_B || (goals.filter(g => g.period === '3' && g.team === 'away').length))
     periods.push({ period: 3, scoreHome: p3Home, scoreAway: p3Away })
 
+    const spectatorEvent = rawEvents.find(e => e.code === 'katsojia')
+    const spectators = spectatorEvent ? Number(spectatorEvent.description || 0) : Number(m.attendance || 0)
+
     return {
       matchId: String(m.match_id || matchId),
       matchNumber: m.match_number,
@@ -99,17 +154,123 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
       venueLon: m.venue_lon ? Number(m.venue_lon) : undefined,
       homeTeamName: String(m.team_A_name || 'Koti'),
       awayTeamName: String(m.team_B_name || 'Vieras'),
+      homeTeamId: m.team_A_id ? String(m.team_A_id) : undefined,
+      awayTeamId: m.team_B_id ? String(m.team_B_id) : undefined,
       scoreHome: Number(m.fs_A || goals[goals.length - 1]?.scoreHome || 0),
       scoreAway: Number(m.fs_B || goals[goals.length - 1]?.scoreAway || 0),
       isLive: m.status === 'Live',
+      referee1: m.referee_1_name ? String(m.referee_1_name) : undefined,
+      referee2: m.referee_2_name ? String(m.referee_2_name) : undefined,
+      spectators: spectators || undefined,
+      playingTimeMin: m.playing_time_min ? Number(m.playing_time_min) : 45,
       periods,
       goals,
       penalties,
+      saves,
+      goalkeepers: {
+        home: {
+          goalieName: homeGoalieName,
+          saves: homeSaves,
+          goalsConceded: homeConceded,
+          savePercentage: homeSavePct,
+        },
+        away: {
+          goalieName: awayGoalieName,
+          saves: awaySaves,
+          goalsConceded: awayConceded,
+          savePercentage: awaySavePct,
+        },
+      },
       totalEvents: rawEvents.length,
     }
   } catch (err) {
     console.error('[SALIBANDY_API]', err)
     return null
+  }
+}
+
+/**
+ * Fetches Team Roster and Players
+ */
+export async function fetchSalibandyTeamRoster(teamId: string): Promise<SalibandyRosterPlayer[]> {
+  try {
+    const url = `${API_BASE}/getTeam?team_id=${encodeURIComponent(teamId)}`
+    const res = await fetch(url, { headers: reqHeaders })
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!data.team?.players) return []
+
+    return data.team.players.map((p: any) => ({
+      playerId: String(p.player_id),
+      firstName: String(p.first_name || ''),
+      lastName: String(p.last_name || ''),
+      fullName: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+      shirtNumber: String(p.shirt_number || ''),
+      birthYear: String(p.birthyear || ''),
+      isCaptain: p.captain === '1' || p.captain === 'yes',
+      imageUrl: p.img_url || undefined,
+      goals: Number(p.goals || 0),
+      assists: Number(p.assists || 0),
+      points: Number(p.goals || 0) + Number(p.assists || 0),
+      penaltiesMin: Number(p.suspensions || p.warnings || 0) * 2,
+    }))
+  } catch (err) {
+    console.error('[SALIBANDY_ROSTER_API]', err)
+    return []
+  }
+}
+
+/**
+ * Fetches Team Fixtures and Match History
+ */
+export async function fetchSalibandyTeamFixtures(teamId: string): Promise<SalibandyTeamFixture[]> {
+  try {
+    const url = `${API_BASE}/getMatches?team_id=${encodeURIComponent(teamId)}`
+    const res = await fetch(url, { headers: reqHeaders })
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!Array.isArray(data.matches)) return []
+
+    return data.matches.map((m: any) => {
+      const isHome = String(m.team_A_id) === teamId
+      const scoreHome = m.fs_A != null && m.fs_A !== '' ? Number(m.fs_A) : undefined
+      const scoreAway = m.fs_B != null && m.fs_B !== '' ? Number(m.fs_B) : undefined
+      const hasScore = scoreHome !== undefined && scoreAway !== undefined
+
+      let isWin = false
+      let isDraw = false
+      let isLoss = false
+
+      if (hasScore) {
+        if (isHome) {
+          isWin = scoreHome > scoreAway
+          isDraw = scoreHome === scoreAway
+          isLoss = scoreHome < scoreAway
+        } else {
+          isWin = scoreAway > scoreHome
+          isDraw = scoreHome === scoreAway
+          isLoss = scoreAway < scoreHome
+        }
+      }
+
+      return {
+        matchId: String(m.match_id),
+        date: String(m.date || ''),
+        time: String(m.time || ''),
+        homeTeam: String(m.team_A_name || 'Koti'),
+        awayTeam: String(m.team_B_name || 'Vieras'),
+        score: hasScore ? `${scoreHome}–${scoreAway}` : undefined,
+        isHome,
+        isWin,
+        isDraw,
+        isLoss,
+        venueName: String(m.venue_name || 'Kenttä'),
+        categoryName: String(m.category_name || ''),
+      }
+    })
+  } catch (err) {
+    console.error('[SALIBANDY_FIXTURES_API]', err)
+    return []
   }
 }
 
