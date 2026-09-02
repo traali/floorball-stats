@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Floorball Match Card (MCP App)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.03); }
+    }
+    .glow-cyan {
+      box-shadow: 0 0 25px rgba(91, 192, 190, 0.25);
+    }
+  </style>
+</head>
+<body class="bg-[#0B132B] text-slate-100 p-4 font-sans antialiased">
+  <div id="app" class="max-w-md mx-auto bg-[#1C2541] rounded-2xl p-5 border border-slate-700/60 shadow-2xl glow-cyan">
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b border-slate-700/50 pb-3 mb-4">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🏑</span>
+        <div>
+          <h2 class="text-sm font-bold tracking-wide uppercase text-[#5BC0BE]">Salibandy Torneopal</h2>
+          <p id="compName" class="text-xs text-slate-400">P13 VALKOINEN B ES</p>
+        </div>
+      </div>
+      <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+        Päättynyt
+      </span>
+    </div>
+
+    <!-- Match Scoreboard -->
+    <div class="grid grid-cols-3 items-center text-center my-3">
+      <div class="text-left">
+        <div id="homeName" class="font-bold text-sm text-slate-200 truncate">SB-Pro Valk.</div>
+        <div class="text-[11px] text-slate-400">Koti</div>
+      </div>
+      <div class="bg-[#0B132B] px-3 py-2 rounded-xl border border-slate-700">
+        <div class="text-2xl font-black tracking-wider text-[#6FFFE9]">
+          <span id="homeScore">3</span> – <span id="awayScore">15</span>
+        </div>
+      </div>
+      <div class="text-right">
+        <div id="awayName" class="font-bold text-sm text-[#5BC0BE] truncate">Indians Yellow</div>
+        <div class="text-[11px] text-slate-400">Vieras (Voittaja)</div>
+      </div>
+    </div>
+
+    <!-- Period Breakdown -->
+    <div class="mt-4 bg-[#0B132B]/70 rounded-xl p-3 border border-slate-800">
+      <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Erätulokset (3 × 15 min)</div>
+      <div class="grid grid-cols-3 gap-2 text-center text-xs">
+        <div class="bg-[#1C2541] p-2 rounded-lg border border-slate-700/50">
+          <div class="text-slate-400 text-[10px]">1. Erä</div>
+          <div class="font-bold text-slate-200 mt-0.5">1 – 4</div>
+        </div>
+        <div class="bg-[#1C2541] p-2 rounded-lg border border-slate-700/50">
+          <div class="text-slate-400 text-[10px]">2. Erä</div>
+          <div class="font-bold text-slate-200 mt-0.5">1 – 5</div>
+        </div>
+        <div class="bg-[#1C2541] p-2 rounded-lg border border-slate-700/50">
+          <div class="text-slate-400 text-[10px]">3. Erä</div>
+          <div class="font-bold text-slate-200 mt-0.5">1 – 6</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key Goal Events -->
+    <div class="mt-4">
+      <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+        <span>Avaintapahtumat</span>
+        <span class="text-[10px] text-[#5BC0BE]">18 Maalia / 2min Jäähy</span>
+      </div>
+      <div id="eventsList" class="space-y-2 text-xs">
+        <div class="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 border border-slate-700/30">
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-[11px] text-slate-400">04:04</span>
+            <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">0-1</span>
+            <span class="font-medium text-slate-200">Hyrkkö A.</span>
+          </div>
+          <span class="text-slate-400 text-[11px]">Indians</span>
+        </div>
+        <div class="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 border border-slate-700/30">
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-[11px] text-slate-400">37:52</span>
+            <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-[10px]">2 min</span>
+            <span class="font-medium text-slate-200">Särkkä L. (Väärä etäisyys)</span>
+          </div>
+          <span class="text-slate-400 text-[11px]">Indians</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Venue & Footer -->
+    <div class="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-400">
+      <div class="flex items-center gap-1.5">
+        <span>📍</span>
+        <span id="venueName">Otahalli Espoo</span>
+      </div>
+      <button onclick="openFullReport()" class="px-3 py-1 bg-[#3A506B] hover:bg-[#5BC0BE] hover:text-[#0B132B] transition-all rounded-lg font-medium text-slate-200">
+        Avaa otteluraportti →
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Standard MCP App PostMessage RPC Handler
+    window.addEventListener('message', (event) => {
+      const { method, params } = event.data || {};
+      if (method === 'ui/setData') {
+        if (params.homeTeam) document.getElementById('homeName').textContent = params.homeTeam;
+        if (params.awayTeam) document.getElementById('awayName').textContent = params.awayTeam;
+        if (params.scoreHome !== undefined) document.getElementById('homeScore').textContent = params.scoreHome;
+        if (params.scoreAway !== undefined) document.getElementById('awayScore').textContent = params.scoreAway;
+        if (params.venue) document.getElementById('venueName').textContent = params.venue;
+      }
+    });
+
+    function openFullReport() {
+      if (window.parent) {
+        window.parent.postMessage({ type: 'mcp_app:action', action: 'open_url', url: 'https://floorball-stats.pages.dev/match/913481' }, '*');
+      } else {
+        window.open('https://tulospalvelu.salibandy.fi/match/913481/events', '_blank');
+      }
+    }
+  </script>
+</body>
+</html>
