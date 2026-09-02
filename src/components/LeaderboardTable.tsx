@@ -36,7 +36,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ leaders }) =
               </tr>
             ) : (
               leaders.slice(0, 10).map((player, idx) => (
-                <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
+                <tr key={`${player.playerName}-${player.teamName}`} className="hover:bg-slate-800/40 transition-colors">
                   <td className="py-2.5 px-3 font-medium text-slate-200 flex items-center gap-2">
                     <span className="font-mono text-slate-400">{idx + 1}.</span>
                     <span>{player.playerName}</span>

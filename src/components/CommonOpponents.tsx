@@ -43,9 +43,9 @@ export const CommonOpponents: React.FC<CommonOpponentsProps> = ({ homeTeam, away
       </div>
 
       <div className="space-y-3">
-        {commonList.map((opp, idx) => (
+        {commonList.map((opp) => (
           <div
-            key={idx}
+            key={opp.teamName}
             className="p-3 rounded-xl bg-[#0B132B]/60 border border-slate-800 flex items-center justify-between"
           >
             <div className="font-bold text-xs text-slate-200">{opp.teamName}</div>
