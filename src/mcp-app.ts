@@ -1,5 +1,5 @@
 /**
- * Floorball Stats MCP App Tool Handler
+ * Floorball Stats MCP App Tool Handler & WebMCP Browser Registry
  * Standard: @modelcontextprotocol/ext-apps (2026 UI Capabilities Standard)
  * Reference: https://modelcontextprotocol.info/blog/mcp-apps-ui-capabilities/
  *
@@ -77,4 +77,174 @@ export async function getFloorballMatchCard(params: {
       },
     },
   }
+}
+
+export interface ModelContextTool {
+  name: string
+  description: string
+  inputSchema: {
+    type: string
+    properties?: Record<string, unknown>
+    required?: string[]
+  }
+  execute: (args: Record<string, unknown>) => Promise<unknown>
+}
+
+export interface ModelContextRegistry {
+  registerTool: (tool: ModelContextTool) => Promise<void> | void
+  unregisterTool?: (name: string) => Promise<void> | void
+  getTools: () => ModelContextTool[]
+  listTools: () => Promise<{ tools: Array<{ name: string; description: string; inputSchema: ModelContextTool['inputSchema'] }> }>
+  callTool: (params: { name: string; arguments?: Record<string, unknown> }) => Promise<McpToolResponse>
+  executeTool: (name: string, args?: Record<string, unknown>) => Promise<unknown>
+}
+
+declare global {
+  interface Document {
+    modelContext?: ModelContextRegistry
+  }
+  interface Navigator {
+    modelContext?: ModelContextRegistry
+  }
+  interface Window {
+    modelContext?: ModelContextRegistry
+  }
+}
+
+export function registerFloorballWebMCP(): ModelContextRegistry | undefined {
+  if (typeof window === 'undefined') return
+
+  const registeredTools = new Map<string, ModelContextTool>()
+
+  const registry: ModelContextRegistry = {
+    registerTool: async (tool: ModelContextTool) => {
+      registeredTools.set(tool.name, tool)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('webmcp:tool_registered', { detail: { toolName: tool.name } }))
+      }
+    },
+    unregisterTool: async (name: string) => {
+      registeredTools.delete(name)
+    },
+    getTools: () => Array.from(registeredTools.values()),
+    listTools: async () => ({
+      tools: Array.from(registeredTools.values()).map(t => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema,
+      })),
+    }),
+    callTool: async (params: { name: string; arguments?: Record<string, unknown> }) => {
+      const tool = registeredTools.get(params.name)
+      if (!tool) {
+        return {
+          content: [{ type: 'text', text: `Error: Tool '${params.name}' not found in Floorball Stats WebMCP.` }],
+        }
+      }
+      try {
+        const res = await tool.execute(params.arguments || {})
+        if (res && typeof res === 'object' && 'content' in res) {
+          return res as McpToolResponse
+        }
+        return {
+          content: [{
+            type: 'text',
+            text: typeof res === 'string' ? res : JSON.stringify(res, null, 2),
+          }],
+        }
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        return {
+          content: [{ type: 'text', text: `Error executing '${params.name}': ${errorMessage}` }],
+        }
+      }
+    },
+    executeTool: async (name: string, args: Record<string, unknown> = {}) => {
+      const tool = registeredTools.get(name)
+      if (!tool) throw new Error(`Tool '${name}' not found`)
+      return tool.execute(args)
+    },
+  }
+
+  if (typeof document !== 'undefined') {
+    document.modelContext = registry
+  }
+  if (typeof navigator !== 'undefined') {
+    try {
+      Object.defineProperty(navigator, 'modelContext', {
+        value: registry,
+        configurable: true,
+        enumerable: true,
+        writable: true,
+      })
+    } catch {
+      ;(navigator as unknown as { modelContext?: ModelContextRegistry }).modelContext = registry
+    }
+  }
+  if (typeof window !== 'undefined') {
+    ;(window as unknown as { modelContext?: ModelContextRegistry }).modelContext = registry
+
+    window.addEventListener('message', async (event: MessageEvent) => {
+      const data = event.data
+      if (!data || data.type !== 'webmcp:request' || !data.id) return
+
+      try {
+        if (data.method === 'tools/list' || data.method === 'listTools') {
+          const result = await registry.listTools()
+          window.postMessage({ type: 'webmcp:response', id: data.id, result }, '*')
+        } else if (data.method === 'tools/call' || data.method === 'callTool') {
+          const result = await registry.callTool(data.params || { name: '', arguments: {} })
+          window.postMessage({ type: 'webmcp:response', id: data.id, result }, '*')
+        }
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'WebMCP execution failed'
+        window.postMessage({
+          type: 'webmcp:response',
+          id: data.id,
+          error: { message: errorMessage },
+        }, '*')
+      }
+    })
+
+    window.dispatchEvent(
+      new CustomEvent('webmcp:ready', { detail: { location: 'navigator.modelContext & document.modelContext' } })
+    )
+  }
+
+  // Register get_floorball_match_card tool
+  registry.registerTool({
+    name: 'get_floorball_match_card',
+    description: 'Returns floorball match statistics, 3-period score progressions, goalie save rates, and UI widget URI.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matchId: { type: 'string', description: 'SSBL Torneopal match identifier' },
+      },
+    },
+    execute: async (args) => getFloorballMatchCard(args as { matchId?: string; teamId?: string }),
+  })
+
+  // Register get_floorball_standings tool
+  registry.registerTool({
+    name: 'get_floorball_standings',
+    description: 'Returns floorball standings, 3-2-1-0 points system, and goal differential.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        series: { type: 'string', description: 'Division / series name' },
+      },
+    },
+    execute: async ({ series }) => ({
+      series: (series as string) || 'P14 SM-sarja',
+      teams: [
+        { rank: 1, team: 'Westend Indians', played: 8, won: 7, wonOt: 1, lostOt: 0, lost: 0, points: 23, goalDiff: '+48' },
+        { rank: 2, team: 'Esport Oilers', played: 8, won: 6, wonOt: 0, lostOt: 1, lost: 1, points: 19, goalDiff: '+32' },
+        { rank: 3, team: 'EräViikingit', played: 8, won: 5, wonOt: 0, lostOt: 0, lost: 3, points: 15, goalDiff: '+14' },
+      ],
+      pointsRule: '3p regulation win, 2p OT/SO win, 1p OT/SO loss, 0p regulation loss',
+    }),
+  })
+
+  console.log('✨ [WebMCP] Successfully registered Floorball Stats tools into navigator.modelContext & document.modelContext')
+  return registry
 }
