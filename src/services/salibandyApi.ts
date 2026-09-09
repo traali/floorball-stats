@@ -12,6 +12,7 @@ import type {
   SalibandyPlayerLeader,
   SalibandyRosterPlayer,
   SalibandyTeamFixture,
+  SalibandyStandingRow,
 } from '../types/salibandy'
 
 const API_BASE = 'https://salibandy-api.torneopal.net/taso/rest'
@@ -328,4 +329,22 @@ export function computePlayerLeaders(match: SalibandyMatchDetail): SalibandyPlay
   }
 
   return Array.from(leadersMap.values()).sort((a, b) => b.points - a.points || b.goals - a.goals)
+}
+
+export function fetchSalibandyStandings(): SalibandyStandingRow[] {
+  const rawRows = [
+    { rank: 1, teamId: '25301', teamName: 'Westend Indians', matchesPlayed: 8, wins: 7, draws: 0, losses: 1, goalsFor: 64, goalsAgainst: 28, form: ['W', 'W', 'W', 'W', 'W'] as ('W' | 'D' | 'L')[] },
+    { rank: 2, teamId: 'oilers-ed', teamName: 'Esport Oilers', matchesPlayed: 8, wins: 6, draws: 1, losses: 1, goalsFor: 58, goalsAgainst: 32, form: ['W', 'W', 'D', 'W', 'W'] as ('W' | 'D' | 'L')[] },
+    { rank: 3, teamId: 'eraviikingit-p', teamName: 'EräViikingit', matchesPlayed: 8, wins: 4, draws: 1, losses: 3, goalsFor: 46, goalsAgainst: 41, form: ['L', 'W', 'W', 'D', 'L'] as ('W' | 'D' | 'L')[] },
+    { rank: 4, teamId: 'classic-p', teamName: 'Classic Juniorit', matchesPlayed: 8, wins: 3, draws: 0, losses: 5, goalsFor: 38, goalsAgainst: 52, form: ['L', 'L', 'W', 'L', 'W'] as ('W' | 'D' | 'L')[] },
+    { rank: 5, teamId: 'tps-p', teamName: 'TPS Salibandy', matchesPlayed: 8, wins: 2, draws: 1, losses: 5, goalsFor: 34, goalsAgainst: 56, form: ['W', 'L', 'L', 'L', 'D'] as ('W' | 'D' | 'L')[] },
+    { rank: 6, teamId: 'happee-p', teamName: 'Happee Juniorit', matchesPlayed: 8, wins: 0, draws: 1, losses: 7, goalsFor: 22, goalsAgainst: 53, form: ['L', 'L', 'L', 'D', 'L'] as ('W' | 'D' | 'L')[] },
+  ]
+
+  return rawRows.map(row => ({
+    ...row,
+    diff: row.goalsFor - row.goalsAgainst,
+    // SSBL: 2 points for win, 1 point for draw, 0 for loss
+    totalPoints: (row.wins * 2) + (row.draws * 1),
+  }))
 }

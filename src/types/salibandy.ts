@@ -131,3 +131,25 @@ export interface SalibandyTeamFixture {
   venueName: string
   categoryName: string
 }
+
+export interface SalibandyStandingRow {
+  rank: number
+  teamId: string
+  teamName: string
+  matchesPlayed: number
+  wins: number
+  draws: number
+  losses: number
+  goalsFor: number
+  goalsAgainst: number
+  diff: number
+  totalPoints: number // SSBL 2-1-0 or 3-2-1-0
+  form: ('W' | 'D' | 'L')[]
+}
+
+export interface CustomFloorballTeam {
+  id: string
+  name: string
+  category: string
+  addedAt: string
+}

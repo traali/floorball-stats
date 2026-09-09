@@ -5,6 +5,8 @@ import { TimelineEventsList } from './components/TimelineEventsList'
 import { LeaderboardTable } from './components/LeaderboardTable'
 import { GoalkeeperBattleCard } from './components/GoalkeeperBattleCard'
 import { SpecialTeamsCard } from './components/SpecialTeamsCard'
+import { FloorballStandingsTable } from './components/FloorballStandingsTable'
+import { FloorballTeamOnboarding } from './components/FloorballTeamOnboarding'
 import { MatchPreviewExport } from './components/MatchPreviewExport'
 import { TeamScheduleView } from './components/TeamScheduleView'
 import { TeamRosterView } from './components/TeamRosterView'
@@ -13,6 +15,7 @@ import {
   fetchSalibandyMatch,
   fetchSalibandyTeamRoster,
   fetchSalibandyTeamFixtures,
+  fetchSalibandyStandings,
   computePlayerLeaders,
 } from './services/salibandyApi'
 import type {
@@ -20,18 +23,30 @@ import type {
   SalibandyPlayerLeader,
   SalibandyRosterPlayer,
   SalibandyTeamFixture,
+  SalibandyStandingRow,
 } from './types/salibandy'
 import { parseIncomingCrossRepoQuery } from './types/contracts'
-import { Loader2, Calendar, Award, Shield, Users, Share2, Swords, Zap } from 'lucide-react'
+import { Loader2, Calendar, Award, Shield, Users, Share2, Swords, Zap, Trophy, PlusCircle } from 'lucide-react'
 
-type TabType = 'match' | 'points' | 'goalies' | 'special_teams' | 'schedule' | 'roster' | 'opponents' | 'export'
+type TabType = 'match' | 'points' | 'goalies' | 'special_teams' | 'standings' | 'schedule' | 'roster' | 'opponents' | 'onboarding' | 'export'
+
+function getInitialMatchId(search: string): string {
+  if (typeof window !== 'undefined') {
+    const pathname = window.location.pathname
+    const matchMatch = pathname.match(/\/match\/([^/]+)/)
+    if (matchMatch) return decodeURIComponent(matchMatch[1])
+  }
+  const q = parseIncomingCrossRepoQuery(new URLSearchParams(search))
+  return q.targetId || '913481'
+}
 
 export function App() {
   const [match, setMatch] = useState<SalibandyMatchDetail | null>(null)
   const [leaders, setLeaders] = useState<SalibandyPlayerLeader[]>([])
   const [roster, setRoster] = useState<SalibandyRosterPlayer[]>([])
   const [fixtures, setFixtures] = useState<SalibandyTeamFixture[]>([])
-  const [currentMatchId, setCurrentMatchId] = useState('913481')
+  const [standings, setStandings] = useState<SalibandyStandingRow[]>([])
+  const [currentMatchId, setCurrentMatchId] = useState(() => getInitialMatchId(window.location.search))
   const [currentTeamId, setCurrentTeamId] = useState('25301')
   const [activeTab, setActiveTab] = useState<TabType>('match')
   const [loading, setLoading] = useState(true)
@@ -45,16 +60,18 @@ export function App() {
       window.__APP_BUILD_INFO__ = {
         version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0',
         commit: typeof __COMMIT_HASH__ !== 'undefined' ? __COMMIT_HASH__ : 'dev',
-        buildTime: typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : new Date().toISOString()
+        buildTime: typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : new Date().toISOString(),
       }
     }
   }, [])
 
   useEffect(() => {
-    if (query.targetId) {
-      setCurrentMatchId(query.targetId)
+    const handlePopState = () => {
+      setCurrentMatchId(getInitialMatchId(window.location.search))
     }
-  }, [query.targetId])
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   useEffect(() => {
     async function loadData() {
@@ -75,6 +92,7 @@ export function App() {
 
       setRoster(rosterData)
       setFixtures(fixturesData)
+      setStandings(fetchSalibandyStandings())
       setLoading(false)
     }
 
@@ -83,6 +101,11 @@ export function App() {
 
   const handleSelectMatch = (matchId: string) => {
     setCurrentMatchId(matchId)
+    setActiveTab('match')
+  }
+
+  const handleSelectTeam = (teamId: string) => {
+    setCurrentTeamId(teamId)
     setActiveTab('match')
   }
 
@@ -138,6 +161,17 @@ export function App() {
             Erikoistilanteet (YV/AV)
           </button>
           <button
+            onClick={() => setActiveTab('standings')}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
+              activeTab === 'standings'
+                ? 'bg-[#3A506B] text-[#6FFFE9] shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            Sarjataulukko
+          </button>
+          <button
             onClick={() => setActiveTab('schedule')}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
               activeTab === 'schedule'
@@ -168,7 +202,18 @@ export function App() {
             }`}
           >
             <Swords className="w-3.5 h-3.5" />
-            Vastustajavertailu
+            Vastustajat
+          </button>
+          <button
+            onClick={() => setActiveTab('onboarding')}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
+              activeTab === 'onboarding'
+                ? 'bg-[#3A506B] text-[#6FFFE9] shadow-md'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <PlusCircle className="w-3.5 h-3.5 text-emerald-400" />
+            Lisää joukkue
           </button>
           <button
             onClick={() => setActiveTab('export')}
@@ -236,6 +281,13 @@ export function App() {
               </div>
             )}
 
+            {activeTab === 'standings' && (
+              <FloorballStandingsTable
+                standings={standings}
+                highlightTeamId={currentTeamId}
+              />
+            )}
+
             {activeTab === 'schedule' && (
               <TeamScheduleView
                 fixtures={fixtures}
@@ -250,6 +302,13 @@ export function App() {
 
             {activeTab === 'opponents' && (
               <CommonOpponents homeTeam={match.homeTeamName} awayTeam={match.awayTeamName} />
+            )}
+
+            {activeTab === 'onboarding' && (
+              <FloorballTeamOnboarding
+                currentTeamId={currentTeamId}
+                onSelectTeam={handleSelectTeam}
+              />
             )}
 
             {activeTab === 'export' && (
