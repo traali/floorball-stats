@@ -309,7 +309,13 @@ export function MatchPage() {
       )}
 
       {activeTab === 'export' && (
-        <MatchPreviewExport match={match} leaders={leaders} />
+        <MatchPreviewExport
+          match={match}
+          leaders={leaders}
+          standings={standings}
+          homeRoster={homeRoster}
+          awayRoster={awayRoster}
+        />
       )}
     </div>
   )

@@ -1,78 +1,78 @@
-import React, { useState } from 'react'
-import type { SalibandyMatchDetail, SalibandyPlayerLeader } from '../types/salibandy'
-import { Share2, Check, Copy } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { Share2, Check, Copy, Download } from 'lucide-react'
+import type {
+  SalibandyMatchDetail,
+  SalibandyPlayerLeader,
+  SalibandyRosterPlayer,
+  SalibandyStandingRow,
+} from '../types/salibandy'
+import { buildFloorballPreviewMd } from '../utils/buildFloorballPreviewMd'
 
 interface MatchPreviewExportProps {
   match: SalibandyMatchDetail
   leaders: SalibandyPlayerLeader[]
+  standings?: SalibandyStandingRow[]
+  homeRoster?: SalibandyRosterPlayer[]
+  awayRoster?: SalibandyRosterPlayer[]
 }
 
-export const MatchPreviewExport: React.FC<MatchPreviewExportProps> = ({ match, leaders }) => {
+export const MatchPreviewExport: React.FC<MatchPreviewExportProps> = ({
+  match,
+  leaders,
+  standings = [],
+  homeRoster = [],
+  awayRoster = [],
+}) => {
   const [copied, setCopied] = useState(false)
+  const md = useMemo(
+    () => buildFloorballPreviewMd({ match, leaders, standings, homeRoster, awayRoster }),
+    [match, leaders, standings, homeRoster, awayRoster],
+  )
 
-  const generateMarkdown = () => {
-    const periodStr = match.periods.map(p => `${p.period}. erä ${p.scoreHome}–${p.scoreAway}`).join(', ')
-    const topScorersStr = leaders
-      .slice(0, 5)
-      .map(p => `• ${p.playerName} (${p.teamName}): ${p.goals}+${p.assists}=${p.points}p`)
-      .join('\n')
-
-    return `🏑 *OTTELURAPORTTI (Salibandy Torneopal)*
-━━━━━━━━━━━━━━━━━━━━
-🏆 *${match.competitionName}* (${match.categoryName})
-🆚 *${match.homeTeamName}* ${match.scoreHome} – ${match.scoreAway} *${match.awayTeamName}*
-📊 *Erät:* ${periodStr}
-📍 *Pelipaikka:* ${match.venueName} (${match.date} klo ${match.time})
-👥 *Katsojat:* ${match.spectators || '30'} | 👮‍♂️ *Tuomarit:* ${match.referee1 || 'Tuomari 1'}, ${match.referee2 || 'Tuomari 2'}
-
-⭐ *PISTEPÖRSSI (TOP 5):*
-${topScorersStr}
-
-🧤 *MAALIVAHDIT:*
-• ${match.homeTeamName}: ${goalkeepersSummary(match.goalkeepers.home)}
-• ${match.awayTeamName}: ${goalkeepersSummary(match.goalkeepers.away)}
-━━━━━━━━━━━━━━━━━━━━
-🔗 https://floorball-stats.pages.dev/match/${match.matchId}`
+  const copy = async () => {
+    await navigator.clipboard.writeText(md)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
   }
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generateMarkdown())
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2500)
+  const download = () => {
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const el = document.createElement('a')
+    el.href = url
+    el.download = `${match.date}_${match.homeTeamName}_vs_${match.awayTeamName}.md`.replace(/\s+/g, '_')
+    el.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
-    <div className="bg-[#1C2541] rounded-2xl p-5 border border-slate-700/60 shadow-xl">
-      <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-700/50">
+    <div className="bg-[#1C2541] rounded-2xl p-5 border border-slate-700/60 shadow-xl space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-700/50">
         <h3 className="font-bold text-sm tracking-wide text-slate-100 flex items-center gap-2">
           <Share2 className="w-4 h-4 text-[#5BC0BE]" />
-          Jaa Otteluraportti (WhatsApp / Markdown)
+          AI-ennakko (.md kuten jalkapallo)
         </h3>
-        <button
-          onClick={copyToClipboard}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3A506B] hover:bg-[#5BC0BE] hover:text-[#0B132B] transition-all text-xs font-semibold text-slate-100"
-        >
-          {copied ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-emerald-300" />
-              <span>Kopioitu!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-3.5 h-3.5" />
-              <span>Kopioi WhatsAppiin</span>
-            </>
-          )}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={copy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3A506B] text-xs font-semibold"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? 'Kopioitu' : 'Kopioi markdown'}
+          </button>
+          <button
+            type="button"
+            onClick={download}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#5BC0BE] text-[#0B132B] text-xs font-bold"
+          >
+            <Download className="w-3.5 h-3.5" /> Lataa .md
+          </button>
+        </div>
       </div>
-
-      <pre className="bg-[#0B132B] p-3.5 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300 overflow-x-auto whitespace-pre-wrap">
-        {generateMarkdown()}
+      <pre className="bg-[#0B132B] p-3.5 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300 overflow-x-auto whitespace-pre-wrap max-h-[28rem]">
+        {md}
       </pre>
     </div>
   )
-}
-
-function goalkeepersSummary(g: { goalieName: string; saves: number; goalsConceded: number; savePercentage: string }) {
-  return `${g.goalieName} (${g.saves} torjuntaa, T% ${g.savePercentage})`
 }
