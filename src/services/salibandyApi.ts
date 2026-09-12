@@ -736,7 +736,7 @@ export async function fetchSalibandyGroup(
   groupId: string,
 ): Promise<SalibandyGroupDetail | null> {
   const data = await tasoGet<{ group?: any }>(
-    `getGroup?competition_id=${encodeURIComponent(competitionId)}&category_id=${encodeURIComponent(categoryId)}&group_id=${encodeURIComponent(groupId)}&matches=1`,
+    `getGroup?competition_id=${encodeURIComponent(competitionId)}&category_id=${encodeURIComponent(categoryId)}&group_id=${encodeURIComponent(groupId)}`,
     `getGroup:${competitionId}:${categoryId}:${groupId}`,
     3 * 60 * 1000,
   )
