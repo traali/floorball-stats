@@ -1,0 +1,9 @@
+{
+  "tool": "federation-understand",
+  "compatibleWith": "Egonex-AI/Understand-Anything 1.0.0",
+  "generatedAt": "2026-09-12T10:44:07.553Z",
+  "repo": "floorball-stats",
+  "commit": "1425555c69ba38e1c133244007d9ef61e73673a7",
+  "nodeCount": 157,
+  "edgeCount": 169
+}
