@@ -119,17 +119,48 @@ export interface SalibandyRosterPlayer {
 
 export interface SalibandyTeamFixture {
   matchId: string
+  matchNumber?: string
   date: string
   time: string
   homeTeam: string
   awayTeam: string
+  homeTeamId?: string
+  awayTeamId?: string
   score?: string
+  scoreHome?: number
+  scoreAway?: number
   isHome: boolean
   isWin?: boolean
   isDraw?: boolean
   isLoss?: boolean
   venueName: string
   categoryName: string
+  competitionId?: string
+  categoryId?: string
+  status?: string
+  seasonYear?: string
+  seasonHalf?: 'syksy' | 'kevat' | 'all'
+}
+
+export interface SalibandySeasonGroup {
+  competitionId: string
+  competitionName: string
+  categoryId: string
+  categoryName: string
+  groupId: string
+  groupName: string
+  seasonId?: string
+  isCurrent?: boolean
+}
+
+export interface SalibandyTeamProfile {
+  teamId: string
+  teamName: string
+  clubName?: string
+  categoryName?: string
+  players: SalibandyRosterPlayer[]
+  fixtures: SalibandyTeamFixture[]
+  groups: SalibandySeasonGroup[]
 }
 
 export interface SalibandyStandingRow {

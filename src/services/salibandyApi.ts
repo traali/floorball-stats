@@ -13,6 +13,8 @@ import type {
   SalibandyRosterPlayer,
   SalibandyTeamFixture,
   SalibandyStandingRow,
+  SalibandyTeamProfile,
+  SalibandySeasonGroup,
 } from '../types/salibandy'
 
 const API_BASE = 'https://salibandy-api.torneopal.net/taso/rest'
@@ -221,6 +223,42 @@ export async function fetchSalibandyTeamRoster(teamId: string): Promise<Saliband
   }
 }
 
+export function determineSeasonHalf(dateStr?: string, categoryName?: string): 'syksy' | 'kevat' {
+  const cat = (categoryName || '').toUpperCase()
+  if (cat.includes('SYKSY') || cat.includes('AUTUMN')) return 'syksy'
+  if (cat.includes('KEVÄT') || cat.includes('KEVAT') || cat.includes('SPRING')) return 'kevat'
+  if (dateStr && dateStr.length >= 7) {
+    const month = parseInt(dateStr.slice(5, 7), 10)
+    if (month >= 8 && month <= 12) return 'syksy'
+    if (month >= 1 && month <= 7) return 'kevat'
+  }
+  return 'syksy'
+}
+
+export function getSeasonYear(dateStr?: string): string {
+  if (dateStr && dateStr.length >= 4) {
+    return dateStr.slice(0, 4)
+  }
+  return '2026'
+}
+
+export function pickHeroMatch(fixtures: SalibandyTeamFixture[], todayIso: string): SalibandyTeamFixture | null {
+  if (!fixtures || fixtures.length === 0) return null
+  // 1. Next upcoming match today or in future
+  const upcoming = fixtures
+    .filter(f => f.date >= todayIso && !f.score)
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+  if (upcoming.length > 0) return upcoming[0]
+
+  // 2. Or most recently played match
+  const played = fixtures
+    .filter(f => Boolean(f.score))
+    .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time))
+  if (played.length > 0) return played[0]
+
+  return fixtures[0] || null
+}
+
 /**
  * Fetches Team Fixtures and Match History
  */
@@ -254,24 +292,96 @@ export async function fetchSalibandyTeamFixtures(teamId: string): Promise<Saliba
         }
       }
 
+      const rawDate = String(m.date || '')
+      const rawCat = String(m.category_name || '')
+      const seasonHalf = determineSeasonHalf(rawDate, rawCat)
+      const seasonYear = getSeasonYear(rawDate)
+
       return {
         matchId: String(m.match_id),
-        date: String(m.date || ''),
+        matchNumber: m.match_number ? String(m.match_number) : undefined,
+        date: rawDate,
         time: String(m.time || ''),
         homeTeam: String(m.team_A_name || 'Koti'),
         awayTeam: String(m.team_B_name || 'Vieras'),
+        homeTeamId: m.team_A_id ? String(m.team_A_id) : undefined,
+        awayTeamId: m.team_B_id ? String(m.team_B_id) : undefined,
         score: hasScore ? `${scoreHome}–${scoreAway}` : undefined,
+        scoreHome,
+        scoreAway,
         isHome,
         isWin,
         isDraw,
         isLoss,
         venueName: String(m.venue_name || 'Kenttä'),
-        categoryName: String(m.category_name || ''),
+        categoryName: rawCat,
+        competitionId: m.competition_id ? String(m.competition_id) : undefined,
+        categoryId: m.category_id ? String(m.category_id) : undefined,
+        status: String(m.status || ''),
+        seasonYear,
+        seasonHalf,
       }
     })
   } catch (err) {
     console.error('[SALIBANDY_FIXTURES_API]', err)
     return []
+  }
+}
+
+/**
+ * Fetches Full Team Profile (Info, Groups, Roster, Fixtures)
+ */
+export async function fetchSalibandyTeamProfile(teamId: string): Promise<SalibandyTeamProfile | null> {
+  try {
+    const url = `${API_BASE}/getTeam?team_id=${encodeURIComponent(teamId)}`
+    const res = await fetch(url, { headers: reqHeaders })
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data.call?.status !== 'ok' || !data.team) return null
+
+    const t = data.team
+    const rawPlayers: any[] = Array.isArray(t.players) ? t.players : []
+    const players: SalibandyRosterPlayer[] = rawPlayers.map((p: any) => ({
+      playerId: String(p.player_id),
+      firstName: String(p.first_name || ''),
+      lastName: String(p.last_name || ''),
+      fullName: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+      shirtNumber: String(p.shirt_number || ''),
+      birthYear: String(p.birthyear || ''),
+      isCaptain: p.captain === '1' || p.captain === 'yes',
+      imageUrl: p.img_url || undefined,
+      goals: Number(p.goals || 0),
+      assists: Number(p.assists || 0),
+      points: Number(p.goals || 0) + Number(p.assists || 0),
+      penaltiesMin: Number(p.suspensions || p.warnings || 0) * 2,
+    }))
+
+    const rawGroups: any[] = Array.isArray(t.groups) ? t.groups : []
+    const groups: SalibandySeasonGroup[] = rawGroups.map((g: any) => ({
+      competitionId: String(g.competition_id || ''),
+      competitionName: String(g.competition_name || ''),
+      categoryId: String(g.category_id || ''),
+      categoryName: String(g.category_name || ''),
+      groupId: String(g.group_id || ''),
+      groupName: String(g.group_name || ''),
+      seasonId: g.competition_season || undefined,
+      isCurrent: g.group_current === '1',
+    }))
+
+    const fixtures = await fetchSalibandyTeamFixtures(teamId)
+
+    return {
+      teamId: String(t.team_id || teamId),
+      teamName: String(t.team_name || 'Salibandyjoukkue'),
+      clubName: String(t.club_name || ''),
+      categoryName: groups[0]?.categoryName || String(t.primary_category?.category_name || ''),
+      players,
+      fixtures,
+      groups,
+    }
+  } catch (err) {
+    console.error('[SALIBANDY_PROFILE_API]', err)
+    return null
   }
 }
 

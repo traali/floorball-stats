@@ -167,7 +167,16 @@ export function registerFloorballWebMCP(): ModelContextRegistry | undefined {
   }
 
   if (typeof document !== 'undefined') {
-    document.modelContext = registry
+    try {
+      Object.defineProperty(document, 'modelContext', {
+        value: registry,
+        configurable: true,
+        enumerable: true,
+        writable: true,
+      })
+    } catch {
+      ;(document as unknown as { modelContext?: ModelContextRegistry }).modelContext = registry
+    }
   }
   if (typeof navigator !== 'undefined') {
     try {
