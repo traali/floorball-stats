@@ -422,14 +422,13 @@ export function pickHeroMatch(fixtures: SalibandyTeamFixture[], todayIso: string
 }
 
 export async function fetchSalibandyTeamFixtures(teamId: string): Promise<SalibandyTeamFixture[]> {
-  try {
-    const url = `${API_BASE}/getMatches?team_id=${encodeURIComponent(teamId)}`
-    const res = await fetch(url, { headers: reqHeaders })
-    if (!res.ok) return []
-    const data = await res.json()
-    if (!Array.isArray(data.matches)) return []
+  const data = await tasoGet<{ matches?: any[] }>(
+    `getMatches?team_id=${encodeURIComponent(teamId)}`,
+    `getMatches:team:${teamId}`,
+  )
+  if (!Array.isArray(data?.matches)) return []
 
-    return data.matches.map((m: any) => {
+  return data.matches.map((m: any) => {
       const isHome = String(m.team_A_id) === teamId
       const scoreHome = m.fs_A != null && m.fs_A !== '' ? Number(m.fs_A) : undefined
       const scoreAway = m.fs_B != null && m.fs_B !== '' ? Number(m.fs_B) : undefined
@@ -481,19 +480,15 @@ export async function fetchSalibandyTeamFixtures(teamId: string): Promise<Saliba
         seasonHalf,
       }
     })
-  } catch (err) {
-    console.error('[SALIBANDY_FIXTURES_API]', err)
-    return []
-  }
 }
 
 export async function fetchSalibandyTeamProfile(teamId: string): Promise<SalibandyTeamProfile | null> {
   try {
-    const url = `${API_BASE}/getTeam?team_id=${encodeURIComponent(teamId)}`
-    const res = await fetch(url, { headers: reqHeaders })
-    if (!res.ok) return null
-    const data = await res.json()
-    if (data.call?.status !== 'ok' || !data.team) return null
+    const data = await tasoGet<{ call?: { status?: string }; team?: any }>(
+      `getTeam?team_id=${encodeURIComponent(teamId)}`,
+      `getTeam:${teamId}`,
+    )
+    if (!data?.team) return null
 
     const t = data.team
     const rawPlayers: any[] = Array.isArray(t.players) ? t.players : []
@@ -948,33 +943,36 @@ export async function searchDiscovery(query: string): Promise<DiscoveryHit[]> {
   }
 
   const comps = await fetchSalibandyCompetitions().catch(() => [])
-  for (const c of comps) {
-    const hay = normalizeSearch(`${c.competitionName} ${c.organiser || ''} ${c.locationName || ''}`)
-    if (tokens.every((t) => hay.includes(t)) || hay.includes(q)) {
-      hits.push({
-        kind: 'competition',
-        id: c.competitionId,
-        title: c.competitionName,
-        subtitle: c.seasonId,
-      })
+  const looksLikePerson = tokens.length >= 2 && tokens.every((t) => /^[a-zåäö]{2,}$/i.test(t))
+  if (!looksLikePerson) {
+    for (const c of comps) {
+      const hay = normalizeSearch(`${c.competitionName} ${c.organiser || ''} ${c.locationName || ''}`)
+      if (tokens.every((t) => hay.includes(t)) || hay.includes(q)) {
+        hits.push({
+          kind: 'competition',
+          id: c.competitionId,
+          title: c.competitionName,
+          subtitle: c.seasonId,
+        })
+      }
     }
-  }
 
-  const catSources = comps
-    .filter((c) => c.competitionId.startsWith('sb2026') || (c.seasonId || '').includes('2026'))
-    .slice(0, 8)
-  const catLists = await Promise.all(
-    catSources.map((c) => fetchSalibandyCategories(c.competitionId).catch(() => [])),
-  )
-  for (const list of catLists) {
-    for (const cat of list) {
-      if (!normalizeSearch(cat.categoryName).includes(q) && !tokens.some((t) => normalizeSearch(cat.categoryName).includes(t))) continue
-      hits.push({
-        kind: 'category',
-        id: `${cat.competitionId}::${cat.categoryId}`,
-        title: cat.categoryName,
-        subtitle: cat.competitionName,
-      })
+    const catSources = comps
+      .filter((c) => c.competitionId.startsWith('sb2026') || (c.seasonId || '').includes('2026'))
+      .slice(0, 4)
+    const catLists = await Promise.all(
+      catSources.map((c) => fetchSalibandyCategories(c.competitionId).catch(() => [])),
+    )
+    for (const list of catLists) {
+      for (const cat of list) {
+        if (!normalizeSearch(cat.categoryName).includes(q) && !tokens.some((t) => normalizeSearch(cat.categoryName).includes(t))) continue
+        hits.push({
+          kind: 'category',
+          id: `${cat.competitionId}::${cat.categoryId}`,
+          title: cat.categoryName,
+          subtitle: cat.competitionName,
+        })
+      }
     }
   }
 
