@@ -35,3 +35,8 @@ Append-only record of decisions, contract versions, and dispensations.
 - **Office / Author:** Cellarer / Master of Works
 - **Verdict:** PASS
 - **Summary:** Live matches never cached. Upcoming max-age 30s (lineups). Played immutable. Roster 60s. Worker Cache API only store-played.
+
+## 2026-09-12 — Home is search, not a hardcoded match
+- **Office / Author:** Master of Works
+- **Verdict:** PASS
+- **Summary:** `/` is discovery (search + chips). MCP no longer defaults to match 913481 / Westend. GitHub Pages deploys without Cloudflare token.

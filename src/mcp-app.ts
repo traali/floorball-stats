@@ -34,12 +34,17 @@ export async function getFloorballMatchCard(params: {
   matchId?: string
   teamId?: string
 }): Promise<McpToolResponse> {
-  const matchId = params.matchId || '913481'
+  const matchId = params.matchId
+  if (!matchId) {
+    return {
+      content: [{ type: 'text', text: 'Anna matchId. Älä käytä kovakoodattua ottelua. Hae SSBL:stä.' }],
+    }
+  }
   const match = await fetchSalibandyMatch(matchId)
 
   const periodSummary = match
     ? match.periods.map(p => `${p.period}. erä ${p.scoreHome}–${p.scoreAway}`).join(', ')
-    : '1. erä 1–4, 2. erä 1–5, 3. erä 1–6'
+    : ''
 
   const stats: SportStatsContract = formatFloorballStatsContract({
     matchId,
@@ -51,8 +56,8 @@ export async function getFloorballMatchCard(params: {
       lastResult: match ? `${match.scoreHome}–${match.scoreAway}` : '3–15',
     },
     periodScores: periodSummary,
-    topScorer: match?.goals[0] ? `${match.goals[0].scorerName}` : 'Hyrkkö Artturi',
-    totalPenaltiesMin: match?.penalties.length ? match.penalties.length * 2 : 2,
+    topScorer: match?.goals[0] ? `${match.goals[0].scorerName}` : '',
+    totalPenaltiesMin: match?.penalties.length ? match.penalties.length * 2 : 0,
     baseUrl: 'https://floorball-stats.pages.dev',
   })
 
@@ -60,7 +65,9 @@ export async function getFloorballMatchCard(params: {
     content: [
       {
         type: 'text',
-        text: `Salibandy Ottelutilastot (${match?.homeTeamName || 'SB-Pro Valkoinen'} vs ${match?.awayTeamName || 'Westend Indians Yellow'})\nLopputulos: ${match ? `${match.scoreHome}–${match.scoreAway}` : '3–15'}\nErät: ${periodSummary}\nPelipaikka: ${match?.venueName || 'Otahalli Espoo'}`,
+        text: match
+          ? `Salibandyottelu ${match.homeTeamName} vs ${match.awayTeamName}\nTulos: ${match.scoreHome}–${match.scoreAway}\nErät: ${periodSummary}\nPaikka: ${match.venueName || ''}`
+          : `Ottelua ${matchId} ei löytynyt.`,
       },
       {
         type: 'resource',
@@ -244,12 +251,9 @@ export function registerFloorballWebMCP(): ModelContextRegistry | undefined {
       },
     },
     execute: async ({ series }) => ({
-      series: (series as string) || 'P14 SM-sarja',
-      teams: [
-        { rank: 1, team: 'Westend Indians', played: 8, won: 7, wonOt: 1, lostOt: 0, lost: 0, points: 23, goalDiff: '+48' },
-        { rank: 2, team: 'Esport Oilers', played: 8, won: 6, wonOt: 0, lostOt: 1, lost: 1, points: 19, goalDiff: '+32' },
-        { rank: 3, team: 'EräViikingit', played: 8, won: 5, wonOt: 0, lostOt: 0, lost: 3, points: 15, goalDiff: '+14' },
-      ],
+      series: (series as string) || '',
+      teams: [] as Array<{ rank: number; team: string; points: number }>,
+      note: 'Standings come from SSBL getGroup. Pass a live series; dummy tables are forbidden.',
       pointsRule: '3p regulation win, 2p OT/SO win, 1p OT/SO loss, 0p regulation loss',
     }),
   })

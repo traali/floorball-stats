@@ -9,12 +9,7 @@ interface FloorballTeamOnboardingProps {
 
 const STORAGE_KEY = 'floorball_custom_teams'
 
-const defaultTeams: CustomFloorballTeam[] = [
-  { id: '25301', name: 'Westend Indians P14', category: 'P14 Haastajasarja', addedAt: new Date().toISOString() },
-  { id: 'oilers-ed', name: 'Esport Oilers Musta', category: 'P14 Kilpasarja', addedAt: new Date().toISOString() },
-  { id: 'eraviikingit-p', name: 'EräViikingit Sininen', category: 'P14 Aluesarja', addedAt: new Date().toISOString() },
-  { id: 'classic-p', name: 'Classic Punainen', category: 'P14 Kilpasarja', addedAt: new Date().toISOString() },
-]
+const defaultTeams: CustomFloorballTeam[] = []
 
 export function FloorballTeamOnboarding({ onSelectTeam, currentTeamId }: FloorballTeamOnboardingProps) {
   const [teams, setTeams] = useState<CustomFloorballTeam[]>(() => {

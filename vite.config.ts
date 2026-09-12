@@ -13,6 +13,7 @@ const buildTime = new Date().toISOString()
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',
   define: {
     __APP_VERSION__: JSON.stringify('1.0.0'),
     __COMMIT_HASH__: JSON.stringify(commitHash),
