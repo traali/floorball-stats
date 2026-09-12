@@ -35,3 +35,7 @@ Before calling the Clean-Room Visitor:
 2. `npm run lint` exits 0.
 3. `npm run build` exits 0.
 4. Cross-repo contract verified with canonical rules.
+
+## Neighbor check
+`npm run visit` includes `scripts/check-neighbors.mjs`: peer AGENTS.md + canonical contract fields + 5-point plans. Do not drop a required contract field without a major version.
+
