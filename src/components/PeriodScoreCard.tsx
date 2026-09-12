@@ -9,8 +9,9 @@ interface PeriodScoreCardProps {
 
 export const PeriodScoreCard: React.FC<PeriodScoreCardProps> = ({ match }) => {
   const navigate = useNavigate()
-  const upcoming = match.phase === 'upcoming'
-  const live = match.phase === 'live'
+  const future = Boolean(match.date && match.date > new Date().toISOString().slice(0, 10))
+  const upcoming = match.phase === 'upcoming' || future
+  const live = match.phase === 'live' && !future
   const isHomeWinner = !upcoming && !live && match.scoreHome > match.scoreAway
   const isAwayWinner = !upcoming && !live && match.scoreAway > match.scoreHome
 

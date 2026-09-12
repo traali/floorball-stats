@@ -1,7 +1,41 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, User, Star } from 'lucide-react'
+import { Users, Star } from 'lucide-react'
 import type { SalibandyRosterPlayer } from '../types/salibandy'
+
+function Card({ p }: { p: SalibandyRosterPlayer }) {
+  const navigate = useNavigate()
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(`/player/${p.playerId}`)}
+      className="w-full text-left rounded-xl border border-slate-800 bg-[#0B132B]/80 px-3 py-2.5 hover:border-[#5BC0BE]/50"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-bold text-slate-100 truncate">
+          {p.shirtNumber ? <span className="text-[#6FFFE9] font-mono mr-1">#{p.shirtNumber}</span> : null}
+          {p.fullName || 'Pelaaja'}
+          {p.isCaptain ? <Star className="inline w-3 h-3 ml-1 text-amber-400" /> : null}
+        </span>
+        <span className="text-[11px] text-slate-500 shrink-0">{p.birthYear || ''}</span>
+      </div>
+      <div className="mt-1.5 grid grid-cols-3 gap-1 text-center">
+        <div className="rounded-lg bg-[#1C2541] py-1">
+          <div className="text-[9px] uppercase text-slate-500">G</div>
+          <div className="text-sm font-black text-[#6FFFE9]">{p.goals}</div>
+        </div>
+        <div className="rounded-lg bg-[#1C2541] py-1">
+          <div className="text-[9px] uppercase text-slate-500">A</div>
+          <div className="text-sm font-black text-[#6FFFE9]">{p.assists}</div>
+        </div>
+        <div className="rounded-lg bg-[#1C2541] py-1">
+          <div className="text-[9px] uppercase text-slate-500">P</div>
+          <div className="text-sm font-black text-white">{p.points}</div>
+        </div>
+      </div>
+    </button>
+  )
+}
 
 function Column({
   teamName,
@@ -10,7 +44,6 @@ function Column({
   teamName: string
   roster: SalibandyRosterPlayer[]
 }) {
-  const navigate = useNavigate()
   const rows = [...roster].sort((a, b) => b.points - a.points || b.goals - a.goals)
   return (
     <div className="bg-[#1C2541] rounded-2xl p-4 border border-slate-700/60">
@@ -19,35 +52,16 @@ function Column({
           <Users className="w-4 h-4 text-[#5BC0BE]" />
           {teamName}
         </h3>
-        <span className="text-[11px] text-slate-400">{rows.length} pelaajaa · kausi G+A</span>
+        <span className="text-[11px] text-slate-400">{rows.length} pelaajakorttia</span>
       </div>
       {rows.length === 0 ? (
         <p className="text-xs text-slate-500 py-6 text-center">Kokoonpanoa ei saatu SSBL:stä.</p>
       ) : (
-        <ul className="space-y-1.5">
+        <div className="grid grid-cols-1 gap-2">
           {rows.map((p) => (
-            <li key={p.playerId}>
-              <button
-                type="button"
-                onClick={() => navigate(`/player/${p.playerId}`)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#0B132B]/70 text-left"
-              >
-                <span className="w-7 text-[11px] font-bold text-slate-500 tabular-nums">
-                  {p.shirtNumber ? `#${p.shirtNumber}` : '—'}
-                </span>
-                <span className="flex-1 min-w-0 text-xs font-semibold text-slate-200 truncate">
-                  {p.fullName || 'Pelaaja'}
-                  {p.isCaptain ? (
-                    <Star className="inline w-3 h-3 ml-1 text-amber-400" />
-                  ) : null}
-                </span>
-                <span className="text-[11px] font-bold text-[#6FFFE9] tabular-nums">
-                  {p.goals}+{p.assists}={p.points}p
-                </span>
-              </button>
-            </li>
+            <Card key={p.playerId} p={p} />
           ))}
-        </ul>
+        </div>
       )}
     </div>
   )
@@ -66,10 +80,9 @@ export function EnnakkoRosters({
 }) {
   return (
     <section className="space-y-3">
-      <div className="flex items-center gap-2 text-xs text-slate-400">
-        <User className="w-4 h-4 text-[#5BC0BE]" />
-        Ennakko — molempien joukkueiden pelaajat ja kauden pisteet (maalit+syötöt).
-      </div>
+      <p className="text-xs text-slate-400">
+        Ennakko — pelaajakortit kauden maaleilla ja syötöillä. Avaa kortti nähdäksesi ottelut (uusin ensin, harmaa = ei pelannut).
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Column teamName={homeName} roster={homeRoster} />
         <Column teamName={awayName} roster={awayRoster} />

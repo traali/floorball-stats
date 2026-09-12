@@ -245,7 +245,7 @@ export function MatchPage() {
       {/* Tab Views */}
       {activeTab === 'match' && (
         <div className="space-y-6">
-          {(match.phase === 'upcoming' || homeRoster.length > 0 || awayRoster.length > 0) && (
+          {(match.phase === 'upcoming' || (match.date && match.date > new Date().toISOString().slice(0, 10)) || homeRoster.length > 0 || awayRoster.length > 0) && (
             <EnnakkoRosters
               homeName={match.homeTeamName}
               awayName={match.awayTeamName}
@@ -253,7 +253,7 @@ export function MatchPage() {
               awayRoster={awayRoster}
             />
           )}
-          {match.phase !== 'upcoming' && (
+          {match.phase !== 'upcoming' && !(match.date && match.date > new Date().toISOString().slice(0, 10)) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <TimelineEventsList goals={match.goals} penalties={match.penalties} />
               <div className="space-y-6">

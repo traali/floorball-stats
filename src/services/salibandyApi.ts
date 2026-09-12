@@ -301,13 +301,18 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
     const spectators = spectatorEvent ? Number(spectatorEvent.description || 0) : Number(m.attendance || 0)
 
     const st = String(m.status || '').toLowerCase().trim()
-    const phase: SalibandyMatchDetail['phase'] =
-      st === 'live' || st.includes('live') || String(m.time || '').includes("'")
-        ? 'live'
-        : st === 'played' || st === '1' || st === 'finished'
+    const date = String(m.date || '')
+    const today = new Date().toISOString().slice(0, 10)
+    const live = st === 'live' || st.includes('live') || st === '2' || String(m.time || '').includes("'")
+    const hasScore = m.fs_A != null && String(m.fs_A) !== '' && !(String(m.fs_A) === '0' && String(m.fs_B || '0') === '0' && rawEvents.length === 0 && date >= today)
+    // Future date always wins — Torneopal often sends status 0/1/Played on unplayed games.
+    const phase: SalibandyMatchDetail['phase'] = live
+      ? 'live'
+      : date > today || (date === today && !hasScore && st !== 'played' && st !== 'finished')
+        ? 'upcoming'
+        : hasScore || st === 'played' || st === 'finished'
           ? 'played'
           : 'upcoming'
-    const hasScore = m.fs_A != null && String(m.fs_A) !== ''
 
     return {
       matchId: String(m.match_id || matchId),
