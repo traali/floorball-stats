@@ -17,7 +17,7 @@ export function Layout() {
       }
 
       const p = window.location.pathname
-      if (!window.location.hash && (p.startsWith('/match/') || p.startsWith('/team/'))) {
+      if (!window.location.hash && (p.startsWith('/match/') || p.startsWith('/team/') || p.startsWith('/player/') || p.startsWith('/search') || p.startsWith('/browse') || p.startsWith('/club/') || p.startsWith('/competition/'))) {
         window.location.replace('/#' + p + window.location.search)
       }
     }

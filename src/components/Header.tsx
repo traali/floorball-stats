@@ -1,5 +1,6 @@
 import React from 'react'
-import { Activity, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { Activity, Search, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface HeaderProps {
   isEmbed: boolean
@@ -7,6 +8,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ isEmbed, onBack }) => {
+  const navigate = useNavigate()
   return (
     <header className="bg-[#1C2541]/90 backdrop-blur-md sticky top-0 z-40 border-b border-slate-700/60 px-4 py-3">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
@@ -20,7 +22,7 @@ export const Header: React.FC<HeaderProps> = ({ isEmbed, onBack }) => {
               <ArrowLeft className="w-4 h-4" />
             </button>
           )}
-          <div className="flex items-center gap-2">
+          <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 text-left">
             <span className="text-2xl">🏑</span>
             <div>
               <h1 className="font-bold text-base tracking-wide text-[#6FFFE9] flex items-center gap-2">
@@ -29,19 +31,27 @@ export const Header: React.FC<HeaderProps> = ({ isEmbed, onBack }) => {
                   SSBL Torneopal
                 </span>
               </h1>
-              <p className="text-xs text-slate-400">Salibandyliiga & Sarjatilastot</p>
+              <p className="text-xs text-slate-400">Hae joukkueita, sarjoja ja pelaajia</p>
             </div>
-          </div>
+          </button>
         </div>
 
         <div className="flex items-center gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => navigate('/search')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0B132B] border border-slate-700 text-slate-200"
+          >
+            <Search className="w-3.5 h-3.5" />
+            Hae
+          </button>
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>Monastic Contract v1.0</span>
           </div>
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#3A506B]/40 text-slate-300 border border-slate-700">
             <Activity className="w-3.5 h-3.5 text-[#5BC0BE]" />
-            <span>Live Data</span>
+            <span>Live</span>
           </div>
         </div>
       </div>
