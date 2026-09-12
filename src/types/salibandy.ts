@@ -86,6 +86,7 @@ export interface SalibandyMatchDetail {
   scoreHome: number
   scoreAway: number
   isLive: boolean
+  phase: 'live' | 'upcoming' | 'played'
   referee1?: string
   referee2?: string
   spectators?: number

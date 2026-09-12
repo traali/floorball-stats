@@ -9,12 +9,19 @@ interface PeriodScoreCardProps {
 
 export const PeriodScoreCard: React.FC<PeriodScoreCardProps> = ({ match }) => {
   const navigate = useNavigate()
-  const isHomeWinner = match.scoreHome > match.scoreAway
-  const isAwayWinner = match.scoreAway > match.scoreHome
+  const upcoming = match.phase === 'upcoming'
+  const live = match.phase === 'live'
+  const isHomeWinner = !upcoming && !live && match.scoreHome > match.scoreAway
+  const isAwayWinner = !upcoming && !live && match.scoreAway > match.scoreHome
+
+  const badge = upcoming
+    ? { label: 'Ennakko', className: 'text-amber-300 bg-amber-500/10 border-amber-500/30' }
+    : live
+      ? { label: 'Käynnissä', className: 'text-rose-300 bg-rose-500/10 border-rose-500/30' }
+      : { label: 'Lopputulos (3 erää)', className: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
 
   return (
     <div className="bg-[#1C2541] rounded-2xl p-6 border border-slate-700/60 shadow-xl relative overflow-hidden">
-      {/* Category banner */}
       <div className="flex items-center justify-between text-xs text-slate-400 mb-4 pb-3 border-b border-slate-700/50">
         <span className="font-semibold text-[#5BC0BE] tracking-wide">{match.competitionName} • {match.categoryName}</span>
         <div className="flex items-center gap-3">
@@ -23,9 +30,7 @@ export const PeriodScoreCard: React.FC<PeriodScoreCardProps> = ({ match }) => {
         </div>
       </div>
 
-      {/* Main Scoreboard */}
       <div className="grid grid-cols-3 items-center text-center my-4">
-        {/* Home Team */}
         <div className="flex flex-col items-center">
           <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-xl mb-2 border border-slate-700">
             ⚪
@@ -49,19 +54,17 @@ export const PeriodScoreCard: React.FC<PeriodScoreCardProps> = ({ match }) => {
           )}
         </div>
 
-        {/* Score Center */}
         <div className="flex flex-col items-center">
           <div className="bg-[#0B132B] px-5 py-3 rounded-2xl border border-slate-700/80 shadow-inner">
             <div className="text-3xl sm:text-4xl font-black tracking-widest text-[#6FFFE9]">
-              {match.scoreHome} – {match.scoreAway}
+              {upcoming ? 'vs' : `${match.scoreHome} – ${match.scoreAway}`}
             </div>
           </div>
-          <span className="text-[11px] font-medium text-emerald-400 mt-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-            Lopputulos (3 erää)
+          <span className={`text-[11px] font-medium mt-2 px-2.5 py-0.5 rounded-full border ${badge.className}`}>
+            {badge.label}
           </span>
         </div>
 
-        {/* Away Team */}
         <div className="flex flex-col items-center">
           <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center text-xl mb-2 border border-amber-500/40">
             🟡
@@ -86,22 +89,22 @@ export const PeriodScoreCard: React.FC<PeriodScoreCardProps> = ({ match }) => {
         </div>
       </div>
 
-      {/* 3-Period Breakdown */}
-      <div className="mt-6 bg-[#0B132B]/80 rounded-xl p-4 border border-slate-800">
-        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Eräkohtaiset Tulokset</h3>
-        <div className="grid grid-cols-3 gap-3 text-center">
-          {match.periods.map((p) => (
-            <div key={p.period} className="bg-[#1C2541] p-3 rounded-xl border border-slate-700/50">
-              <div className="text-[11px] font-medium text-slate-400">{p.period}. Erä</div>
-              <div className="text-base font-bold text-slate-100 mt-1">
-                {p.scoreHome} – {p.scoreAway}
+      {!upcoming && (
+        <div className="mt-6 bg-[#0B132B]/80 rounded-xl p-4 border border-slate-800">
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Eräkohtaiset Tulokset</h3>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            {match.periods.map((p) => (
+              <div key={p.period} className="bg-[#1C2541] p-3 rounded-xl border border-slate-700/50">
+                <div className="text-[11px] font-medium text-slate-400">{p.period}. Erä</div>
+                <div className="text-base font-bold text-slate-100 mt-1">
+                  {p.scoreHome} – {p.scoreAway}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Venue Info */}
       <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-400">
         <span className="flex items-center gap-1.5 text-slate-300">
           <MapPin className="w-4 h-4 text-[#5BC0BE]" />

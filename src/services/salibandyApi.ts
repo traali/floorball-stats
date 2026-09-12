@@ -300,6 +300,15 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
     const spectatorEvent = rawEvents.find(e => e.code === 'katsojia')
     const spectators = spectatorEvent ? Number(spectatorEvent.description || 0) : Number(m.attendance || 0)
 
+    const st = String(m.status || '').toLowerCase().trim()
+    const phase: SalibandyMatchDetail['phase'] =
+      st === 'live' || st.includes('live') || String(m.time || '').includes("'")
+        ? 'live'
+        : st === 'played' || st === '1' || st === 'finished'
+          ? 'played'
+          : 'upcoming'
+    const hasScore = m.fs_A != null && String(m.fs_A) !== ''
+
     return {
       matchId: String(m.match_id || matchId),
       matchNumber: m.match_number,
@@ -317,9 +326,10 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
       awayTeamName: String(m.team_B_name || 'Vieras'),
       homeTeamId: m.team_A_id ? String(m.team_A_id) : undefined,
       awayTeamId: m.team_B_id ? String(m.team_B_id) : undefined,
-      scoreHome: Number(m.fs_A || goals[goals.length - 1]?.scoreHome || 0),
-      scoreAway: Number(m.fs_B || goals[goals.length - 1]?.scoreAway || 0),
-      isLive: m.status === 'Live',
+      scoreHome: hasScore ? Number(m.fs_A) : 0,
+      scoreAway: hasScore ? Number(m.fs_B || 0) : 0,
+      isLive: phase === 'live',
+      phase,
       referee1: m.referee_1_name ? String(m.referee_1_name) : undefined,
       referee2: m.referee_2_name ? String(m.referee_2_name) : undefined,
       spectators: spectators || undefined,
@@ -351,18 +361,13 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
 }
 
 export async function fetchSalibandyTeamRoster(teamId: string): Promise<SalibandyRosterPlayer[]> {
-  try {
-    const url = `${API_BASE}/getTeam?team_id=${encodeURIComponent(teamId)}`
-    const res = await fetch(url, { headers: reqHeaders })
-    if (!res.ok) return []
-    const data = await res.json()
-    if (!data.team?.players) return []
-
-    return data.team.players.map((p: any) => mapRosterPlayer(p))
-  } catch (err) {
-    console.error('[SALIBANDY_ROSTER_API]', err)
-    return []
-  }
+  const data = await tasoGet<{ team?: { players?: unknown[] } }>(
+    `getTeam?team_id=${encodeURIComponent(teamId)}`,
+    `getTeam:${teamId}`,
+  )
+  const players = data?.team?.players
+  if (!Array.isArray(players)) return []
+  return players.map((p) => mapRosterPlayer(p))
 }
 
 function mapRosterPlayer(p: any): SalibandyRosterPlayer {

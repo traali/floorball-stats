@@ -20,9 +20,11 @@ import { SpecialTeamsCard } from '../components/SpecialTeamsCard'
 import { FloorballStandingsTable } from '../components/FloorballStandingsTable'
 import { CommonOpponents } from '../components/CommonOpponents'
 import { MatchPreviewExport } from '../components/MatchPreviewExport'
+import { EnnakkoRosters } from '../components/EnnakkoRosters'
 import {
   fetchSalibandyMatch,
   fetchSalibandyGroup,
+  fetchSalibandyTeamRoster,
   mapGroupTeamsToStandings,
   computePlayerLeaders,
 } from '../services/salibandyApi'
@@ -30,6 +32,7 @@ import type {
   SalibandyMatchDetail,
   SalibandyPlayerLeader,
   SalibandyStandingRow,
+  SalibandyRosterPlayer,
 } from '../types/salibandy'
 
 type MatchTab = 'match' | 'points' | 'goalies' | 'special_teams' | 'standings' | 'opponents' | 'export'
@@ -41,6 +44,8 @@ export function MatchPage() {
   const [match, setMatch] = useState<SalibandyMatchDetail | null>(null)
   const [leaders, setLeaders] = useState<SalibandyPlayerLeader[]>([])
   const [standings, setStandings] = useState<SalibandyStandingRow[]>([])
+  const [homeRoster, setHomeRoster] = useState<SalibandyRosterPlayer[]>([])
+  const [awayRoster, setAwayRoster] = useState<SalibandyRosterPlayer[]>([])
   const [activeTab, setActiveTab] = useState<MatchTab>('match')
   const [loading, setLoading] = useState(true)
 
@@ -52,9 +57,36 @@ export function MatchPage() {
       if (m) {
         setMatch(m)
         setLeaders(computePlayerLeaders(m))
-        if (m.competitionId && m.categoryId && m.groupId) {
-          const detail = await fetchSalibandyGroup(m.competitionId, m.categoryId, m.groupId)
-          if (detail) setStandings(mapGroupTeamsToStandings(detail.teams, detail.matches))
+        const [group, home, away] = await Promise.all([
+          m.competitionId && m.categoryId && m.groupId
+            ? fetchSalibandyGroup(m.competitionId, m.categoryId, m.groupId)
+            : Promise.resolve(null),
+          m.homeTeamId ? fetchSalibandyTeamRoster(m.homeTeamId) : Promise.resolve([]),
+          m.awayTeamId ? fetchSalibandyTeamRoster(m.awayTeamId) : Promise.resolve([]),
+        ])
+        if (group) setStandings(mapGroupTeamsToStandings(group.teams, group.matches))
+        setHomeRoster(home)
+        setAwayRoster(away)
+        const startTime = m.date ? `${m.date}T${(m.time || '00:00').padEnd(5, '0')}:00` : ''
+        try {
+          window.parent?.postMessage(
+            {
+              type: 'matchday-context',
+              payload: {
+                eventId: m.matchId,
+                sport: 'floorball',
+                startTime,
+                homeTeam: m.homeTeamName,
+                awayTeam: m.awayTeamName,
+                venueName: m.venueName,
+                association: 'salibandy',
+                externalId: m.matchId,
+              },
+            },
+            '*',
+          )
+        } catch {
+          /* embed parent optional */
         }
       }
       setLoading(false)
@@ -212,16 +244,28 @@ export function MatchPage() {
 
       {/* Tab Views */}
       {activeTab === 'match' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TimelineEventsList goals={match.goals} penalties={match.penalties} />
-          <div className="space-y-6">
-            <GoalkeeperBattleCard
-              goalkeepers={match.goalkeepers}
-              homeTeamName={match.homeTeamName}
-              awayTeamName={match.awayTeamName}
+        <div className="space-y-6">
+          {(match.phase === 'upcoming' || homeRoster.length > 0 || awayRoster.length > 0) && (
+            <EnnakkoRosters
+              homeName={match.homeTeamName}
+              awayName={match.awayTeamName}
+              homeRoster={homeRoster}
+              awayRoster={awayRoster}
             />
-            <LeaderboardTable leaders={leaders} />
-          </div>
+          )}
+          {match.phase !== 'upcoming' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <TimelineEventsList goals={match.goals} penalties={match.penalties} />
+              <div className="space-y-6">
+                <GoalkeeperBattleCard
+                  goalkeepers={match.goalkeepers}
+                  homeTeamName={match.homeTeamName}
+                  awayTeamName={match.awayTeamName}
+                />
+                <LeaderboardTable leaders={leaders} />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
