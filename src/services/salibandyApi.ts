@@ -812,9 +812,26 @@ export async function fetchSalibandyClub(clubId: string): Promise<SalibandyClubD
   }
 }
 
+function pickNum(obj: any, keys: string[], fallback = 0): number {
+  for (const k of keys) {
+    if (obj && obj[k] != null && obj[k] !== '') {
+      const n = num(obj[k], Number.NaN)
+      if (Number.isFinite(n)) return n
+    }
+  }
+  return fallback
+}
+
 function mapPlayerMatch(m: any): SalibandyPlayerMatch {
   const scoreHome = m.fs_A != null && m.fs_A !== '' ? num(m.fs_A) : undefined
   const scoreAway = m.fs_B != null && m.fs_B !== '' ? num(m.fs_B) : undefined
+  const stats = m.stats || m.player_stats || m.statistics || {}
+  const goals = pickNum(m, ['player_goals', 'goals', 'g', 'maalit', 'stat_goals'], pickNum(stats, ['goals', 'g', 'maalit']))
+  const assists = pickNum(m, ['player_assists', 'assists', 'a', 'syotot', 'syötöt'], pickNum(stats, ['assists', 'a']))
+  const pim = pickNum(m, ['suspensions', 'penalties_min', 'pim', 'rangaistusminuutit', 'penalty_minutes', 'rm'], pickNum(stats, ['suspensions', 'pim']))
+  const plusMinus = pickNum(m, ['plusminus', 'plus_minus', 'pm'], pickNum(stats, ['plusminus', 'plus_minus']))
+  const shots = pickNum(m, ['shots', 'shots_total', 'laukaukset'], pickNum(stats, ['shots']))
+  const saves = pickNum(m, ['saves', 'torjunnat', 'saves_total'], pickNum(stats, ['saves']))
   return {
     matchId: str(m.match_id),
     date: str(m.date),
@@ -829,9 +846,13 @@ function mapPlayerMatch(m: any): SalibandyPlayerMatch {
     categoryName: str(m.category_name),
     competitionName: str(m.competition_name),
     seasonId: m.season_id ? str(m.season_id) : undefined,
-    goals: num(m.player_goals),
-    assists: num(m.player_assists),
-    points: num(m.player_points, num(m.player_goals) + num(m.player_assists)),
+    goals,
+    assists,
+    points: pickNum(m, ['player_points', 'points'], goals + assists),
+    pim,
+    plusMinus,
+    shots,
+    saves,
     venueName: m.venue_name ? str(m.venue_name) : undefined,
   }
 }

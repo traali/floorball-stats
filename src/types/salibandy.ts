@@ -328,6 +328,10 @@ export interface SalibandyPlayerMatch {
   goals: number
   assists: number
   points: number
+  pim: number
+  plusMinus?: number
+  shots?: number
+  saves?: number
   venueName?: string
 }
 
