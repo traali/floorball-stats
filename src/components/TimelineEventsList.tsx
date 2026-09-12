@@ -1,10 +1,37 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { SalibandyGoalEvent, SalibandyPenaltyEvent } from '../types/salibandy'
 import { Goal, AlertTriangle, User } from 'lucide-react'
 
 interface TimelineEventsListProps {
   goals: SalibandyGoalEvent[]
   penalties: SalibandyPenaltyEvent[]
+}
+
+function PlayerBtn({
+  name,
+  id,
+  shirt,
+}: {
+  name: string
+  id?: string
+  shirt?: string
+}) {
+  const navigate = useNavigate()
+  const label = `${shirt ? `#${shirt} ` : ''}${name}`
+  if (!id) return <span>{label}</span>
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        navigate(`/player/${id}`)
+      }}
+      className="hover:text-[#6FFFE9] hover:underline"
+    >
+      {label}
+    </button>
+  )
 }
 
 export const TimelineEventsList: React.FC<TimelineEventsListProps> = ({ goals, penalties }) => {
@@ -43,7 +70,7 @@ export const TimelineEventsList: React.FC<TimelineEventsListProps> = ({ goals, p
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-200">
-                          {g.scorerShirtNumber ? `#${g.scorerShirtNumber} ` : ''}{g.scorerName}
+                          <PlayerBtn name={g.scorerName} id={g.scorerPlayerId} shirt={g.scorerShirtNumber} />
                         </span>
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                           {g.scoreHome} – {g.scoreAway}
@@ -52,7 +79,7 @@ export const TimelineEventsList: React.FC<TimelineEventsListProps> = ({ goals, p
                       {g.assistName && (
                         <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                           <User className="w-3 h-3 text-slate-500" />
-                          Syöttäjä: {g.assistName}
+                          Syöttäjä: {g.assistPlayerId ? <PlayerBtn name={g.assistName || ''} id={g.assistPlayerId} /> : g.assistName}
                         </p>
                       )}
                     </div>
@@ -76,7 +103,7 @@ export const TimelineEventsList: React.FC<TimelineEventsListProps> = ({ goals, p
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-amber-200">
-                          {p.shirtNumber ? `#${p.shirtNumber} ` : ''}{p.playerName}
+                          <PlayerBtn name={p.playerName} id={p.playerId} shirt={p.shirtNumber} />
                         </span>
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                           {p.code}

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { SalibandyMatchDetail } from '../types/salibandy'
 import { MapPin, Calendar, Clock, Trophy } from 'lucide-react'
 
@@ -7,6 +8,7 @@ interface PeriodScoreCardProps {
 }
 
 export const PeriodScoreCard: React.FC<PeriodScoreCardProps> = ({ match }) => {
+  const navigate = useNavigate()
   const isHomeWinner = match.scoreHome > match.scoreAway
   const isAwayWinner = match.scoreAway > match.scoreHome
 
@@ -28,7 +30,17 @@ export const PeriodScoreCard: React.FC<PeriodScoreCardProps> = ({ match }) => {
           <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-xl mb-2 border border-slate-700">
             ⚪
           </div>
-          <h2 className="font-bold text-base sm:text-lg text-slate-100">{match.homeTeamName}</h2>
+          {match.homeTeamId ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/team/${match.homeTeamId}`)}
+              className="font-bold text-base sm:text-lg text-slate-100 hover:text-[#6FFFE9]"
+            >
+              {match.homeTeamName}
+            </button>
+          ) : (
+            <h2 className="font-bold text-base sm:text-lg text-slate-100">{match.homeTeamName}</h2>
+          )}
           <span className="text-xs text-slate-400 mt-0.5">Kotijoukkue</span>
           {isHomeWinner && (
             <span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
@@ -54,7 +66,17 @@ export const PeriodScoreCard: React.FC<PeriodScoreCardProps> = ({ match }) => {
           <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center text-xl mb-2 border border-amber-500/40">
             🟡
           </div>
-          <h2 className="font-bold text-base sm:text-lg text-[#6FFFE9]">{match.awayTeamName}</h2>
+          {match.awayTeamId ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/team/${match.awayTeamId}`)}
+              className="font-bold text-base sm:text-lg text-[#6FFFE9] hover:underline"
+            >
+              {match.awayTeamName}
+            </button>
+          ) : (
+            <h2 className="font-bold text-base sm:text-lg text-[#6FFFE9]">{match.awayTeamName}</h2>
+          )}
           <span className="text-xs text-slate-400 mt-0.5">Vierasjoukkue</span>
           {isAwayWinner && (
             <span className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-emerald-400">

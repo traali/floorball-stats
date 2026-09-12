@@ -56,23 +56,7 @@ export function Home() {
     e.preventDefault()
     const val = searchInput.trim()
     if (!val) return
-
-    // Check if match link or ID
-    const matchMatch = val.match(/(?:ottelu|match|id)[=/]([0-9]+)/i) || val.match(/^([0-9]{4,8})$/)
-    if (matchMatch) {
-      navigate(`/match/${matchMatch[1]}`)
-      return
-    }
-
-    // Check if team link or ID
-    const teamMatch = val.match(/(?:joukkue|team)[=/]([0-9a-zA-Z_-]+)/i)
-    if (teamMatch) {
-      navigate(`/team/${teamMatch[1]}`)
-      return
-    }
-
-    // Default: try as match id
-    navigate(`/match/${val}`)
+    navigate(`/search?q=${encodeURIComponent(val)}`)
   }
 
   const isUpcoming = Boolean(heroMatch && !heroMatch.score)
@@ -91,7 +75,7 @@ export function Home() {
           </h1>
         </div>
         <p className="text-xs text-slate-400">
-          {profile ? `${profile.teamName} • ${profile.categoryName || 'SSBL Sarja'}` : 'Ottelut, sarjataulukot ja pelaajatilastot'}
+          Hae joukkue, seura, sarja tai pelaaja — sama polku kuin jalkapallossa.
         </p>
       </div>
 
@@ -186,7 +170,7 @@ export function Home() {
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Hae ottelunumerolla (esim. 913481) tai liitä Salibandy-linkki..."
+            placeholder="Hae joukkuetta, seuraa, sarjaa, pelaajaa tai ottelua…"
             className="grow bg-transparent border-none text-white text-xs px-3.5 py-3 focus:outline-none placeholder:text-slate-500"
           />
           <button
@@ -196,6 +180,25 @@ export function Home() {
             Hae
           </button>
         </form>
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {['Westend', 'EräViikingit', 'SB-Pro', 'U14', 'P13'].map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => navigate(`/search?q=${encodeURIComponent(chip)}`)}
+              className="px-3 py-1.5 rounded-full border border-slate-800 bg-[#1C2541] text-[11px] font-semibold text-slate-300 hover:border-[#5BC0BE]/50"
+            >
+              {chip}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => navigate('/browse')}
+            className="px-3 py-1.5 rounded-full border border-[#5BC0BE]/30 text-[11px] font-semibold text-[#6FFFE9]"
+          >
+            Selaa sarjoja →
+          </button>
+        </div>
       </section>
 
       {/* Quick Team Switcher */}

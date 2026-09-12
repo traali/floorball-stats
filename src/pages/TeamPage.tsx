@@ -12,7 +12,9 @@ import {
 import clsx from 'clsx'
 import {
   fetchSalibandyTeamProfile,
-  fetchSalibandyStandings,
+  fetchSalibandyGroup,
+  pickCurrentGroup,
+  mapGroupTeamsToStandings,
 } from '../services/salibandyApi'
 import type {
   SalibandyStandingRow,
@@ -24,7 +26,7 @@ type TeamTab = 'schedule' | 'roster' | 'standings'
 type SeasonScope = 'syksy' | 'kevat' | 'all'
 
 export function TeamPage() {
-  const { teamId = '25301' } = useParams()
+  const { teamId = '' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
 
@@ -42,15 +44,15 @@ export function TeamPage() {
   useEffect(() => {
     async function loadTeam() {
       setLoading(true)
-      const [p, s] = await Promise.all([
-        fetchSalibandyTeamProfile(teamId),
-        Promise.resolve(fetchSalibandyStandings()),
-      ])
-
+      const p = await fetchSalibandyTeamProfile(teamId)
       if (p) {
         setProfile(p)
+        const current = pickCurrentGroup(p.groups)
+        if (current) {
+          const detail = await fetchSalibandyGroup(current.competitionId, current.categoryId, current.groupId)
+          if (detail) setStandings(mapGroupTeamsToStandings(detail.teams, detail.matches))
+        }
       }
-      setStandings(s)
       setLoading(false)
     }
 
@@ -118,6 +120,15 @@ export function TeamPage() {
           <p className="text-xs text-slate-400 mt-0.5">
             {profile?.clubName ? `${profile.clubName} • ` : ''}{categoryName}
           </p>
+          {profile?.clubId ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/club/${profile.clubId}`)}
+              className="text-[11px] font-semibold text-[#6FFFE9] mt-1"
+            >
+              Avaa seura →
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -345,7 +356,10 @@ export function TeamPage() {
                     <td className="py-2.5 px-3 font-mono font-bold text-slate-300">
                       {p.shirtNumber ? `#${p.shirtNumber}` : '-'}
                     </td>
-                    <td className="py-2.5 px-3 font-semibold text-white flex items-center gap-1.5">
+                    <td
+                      className="py-2.5 px-3 font-semibold text-white cursor-pointer hover:text-[#6FFFE9]"
+                      onClick={() => navigate(`/player/${p.playerId}`)}
+                    >
                       {p.fullName}
                       {p.isCaptain && (
                         <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">

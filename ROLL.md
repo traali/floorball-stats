@@ -13,4 +13,10 @@ Append-only record of decisions, contract versions, and dispensations.
 - **Office / Author:** Master of Works
 - **Scope:** `floorball-stats` Vite SPA (stack unchanged)
 - **Verdict:** PASS
-- **Summary:** Bottom nav no longer hardcodes match `949661` / team `25301`. Search, browse, competition → category → group, club, player, and favorites routes now match football-stats. Search parses tulospalvelu links and scans club + roster names. Live SSBL standings replace the empty table. Canon: `docs/DISCOVERY.md` — basketball and volleyball copy this.
+- **Summary:** Bottom nav no longer hardcodes match `949661` / team `25301`. Search, browse, competition → category → group, club, player, and favorites routes now match football-stats. Search parses tulospalvelu links and scans club + roster names. Live SSBL standings replace the empty table. Match centre links both teams and loads group standings + form V/T/H. Canon: `docs/DISCOVERY.md` — basketball and volleyball copy this.
+
+## 2026-09-12 — Discovery live on GitHub (house, stack unchanged)
+- **Office / Author:** Master of Works
+- **Scope:** `floorball-stats` Vite SPA
+- **Verdict:** PASS
+- **Summary:** Search / browse / club / player / group routes committed. Age chips on competition. Timeline scorers link to player pages. Finnish V/T/H form. Grok preview is a workbench only; this monastery was not overwritten with TanStack Start.

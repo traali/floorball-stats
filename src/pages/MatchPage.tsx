@@ -22,7 +22,8 @@ import { CommonOpponents } from '../components/CommonOpponents'
 import { MatchPreviewExport } from '../components/MatchPreviewExport'
 import {
   fetchSalibandyMatch,
-  fetchSalibandyStandings,
+  fetchSalibandyGroup,
+  mapGroupTeamsToStandings,
   computePlayerLeaders,
 } from '../services/salibandyApi'
 import type {
@@ -34,7 +35,7 @@ import type {
 type MatchTab = 'match' | 'points' | 'goalies' | 'special_teams' | 'standings' | 'opponents' | 'export'
 
 export function MatchPage() {
-  const { matchId = '913481' } = useParams()
+  const { matchId = '' } = useParams()
   const navigate = useNavigate()
 
   const [match, setMatch] = useState<SalibandyMatchDetail | null>(null)
@@ -46,16 +47,16 @@ export function MatchPage() {
   useEffect(() => {
     async function loadMatch() {
       setLoading(true)
-      const [m, s] = await Promise.all([
-        fetchSalibandyMatch(matchId),
-        Promise.resolve(fetchSalibandyStandings()),
-      ])
+      const m = await fetchSalibandyMatch(matchId)
 
       if (m) {
         setMatch(m)
         setLeaders(computePlayerLeaders(m))
+        if (m.competitionId && m.categoryId && m.groupId) {
+          const detail = await fetchSalibandyGroup(m.competitionId, m.categoryId, m.groupId)
+          if (detail) setStandings(mapGroupTeamsToStandings(detail.teams, detail.matches))
+        }
       }
-      setStandings(s)
       setLoading(false)
     }
 
@@ -85,8 +86,6 @@ export function MatchPage() {
     )
   }
 
-  const primaryTeamId = match.awayTeamId || match.homeTeamId || '25301'
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
       {/* Top Navigation Bar with Back button */}
@@ -98,12 +97,26 @@ export function MatchPage() {
           <ArrowLeft className="w-4 h-4" />
           Takaisin
         </button>
-        <button
-          onClick={() => navigate(`/team/${primaryTeamId}`)}
-          className="text-xs text-[#6FFFE9] hover:underline font-semibold"
-        >
-          Koko kausiohjelma →
-        </button>
+        <div className="flex items-center gap-3">
+          {match.homeTeamId ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/team/${match.homeTeamId}`)}
+              className="text-xs text-[#6FFFE9] hover:underline font-semibold"
+            >
+              {match.homeTeamName} →
+            </button>
+          ) : null}
+          {match.awayTeamId ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/team/${match.awayTeamId}`)}
+              className="text-xs text-[#6FFFE9] hover:underline font-semibold"
+            >
+              {match.awayTeamName} →
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* Main 3-Period Score Card */}
@@ -243,7 +256,7 @@ export function MatchPage() {
       {activeTab === 'standings' && (
         <FloorballStandingsTable
           standings={standings}
-          highlightTeamId={primaryTeamId}
+          highlightTeamId={match.homeTeamId}
         />
       )}
 

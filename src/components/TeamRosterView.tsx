@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { SalibandyRosterPlayer } from '../types/salibandy'
 import { Users, User, Star } from 'lucide-react'
 
@@ -8,6 +9,7 @@ interface TeamRosterViewProps {
 }
 
 export const TeamRosterView: React.FC<TeamRosterViewProps> = ({ roster, teamName }) => {
+  const navigate = useNavigate()
   return (
     <div className="bg-[#1C2541] rounded-2xl p-5 border border-slate-700/60 shadow-xl">
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-700/50">
@@ -20,9 +22,11 @@ export const TeamRosterView: React.FC<TeamRosterViewProps> = ({ roster, teamName
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         {roster.map((player) => (
-          <div
+          <button
             key={player.playerId}
-            className="p-3 rounded-xl bg-[#0B132B]/60 border border-slate-800 flex items-center gap-3 hover:border-slate-700 transition-colors"
+            type="button"
+            onClick={() => navigate(`/player/${player.playerId}`)}
+            className="p-3 rounded-xl bg-[#0B132B]/60 border border-slate-800 flex items-center gap-3 hover:border-[#5BC0BE]/50 transition-colors text-left"
           >
             <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-[#6FFFE9] border border-slate-700 overflow-hidden shrink-0">
               {player.imageUrl ? (
@@ -31,7 +35,6 @@ export const TeamRosterView: React.FC<TeamRosterViewProps> = ({ roster, teamName
                   alt={player.fullName}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    // Fallback on missing image
                     ;(e.target as HTMLElement).style.display = 'none'
                   }}
                 />
@@ -52,7 +55,7 @@ export const TeamRosterView: React.FC<TeamRosterViewProps> = ({ roster, teamName
                 )}
               </div>
               <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
-                <span>Synt. {player.birthYear || '2013'}</span>
+                <span>Synt. {player.birthYear || '—'}</span>
                 {player.points > 0 && (
                   <span className="font-bold text-[#6FFFE9]">
                     {player.goals}+{player.assists}={player.points}p
@@ -60,7 +63,7 @@ export const TeamRosterView: React.FC<TeamRosterViewProps> = ({ roster, teamName
                 )}
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

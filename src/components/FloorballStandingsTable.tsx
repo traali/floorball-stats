@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import type { SalibandyStandingRow } from '../types/salibandy'
 
 interface FloorballStandingsTableProps {
@@ -6,6 +7,7 @@ interface FloorballStandingsTableProps {
 }
 
 export function FloorballStandingsTable({ standings, highlightTeamId }: FloorballStandingsTableProps) {
+  const navigate = useNavigate()
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -38,10 +40,11 @@ export function FloorballStandingsTable({ standings, highlightTeamId }: Floorbal
               return (
                 <tr
                   key={row.teamId}
-                  className={`transition-colors ${isHighlighted ? 'bg-amber-500/10 font-bold' : 'hover:bg-slate-800/30'}`}
+                  className={`transition-colors cursor-pointer ${isHighlighted ? 'bg-amber-500/10 font-bold' : 'hover:bg-slate-800/30'}`}
+                  onClick={() => row.teamId && navigate(`/team/${row.teamId}`)}
                 >
                   <td className="py-2.5 px-3 text-center font-mono text-slate-400">{row.rank}</td>
-                  <td className="py-2.5 px-3 font-semibold text-white whitespace-nowrap">{row.teamName}</td>
+                  <td className="py-2.5 px-3 font-semibold text-white whitespace-nowrap hover:text-[#6FFFE9]">{row.teamName}</td>
                   <td className="py-2.5 px-2 text-center font-mono text-slate-300">{row.matchesPlayed}</td>
                   <td className="py-2.5 px-2 text-center font-mono text-emerald-400">{row.wins}</td>
                   <td className="py-2.5 px-2 text-center font-mono text-amber-400">{row.draws}</td>
@@ -61,9 +64,9 @@ export function FloorballStandingsTable({ standings, highlightTeamId }: Floorbal
                         <span
                           key={i}
                           className={`w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center ${
-                            f === 'W'
+                            f === 'V'
                               ? 'bg-emerald-500/20 text-emerald-400'
-                              : f === 'D'
+                              : f === 'T'
                               ? 'bg-amber-500/20 text-amber-400'
                               : 'bg-rose-500/20 text-rose-400'
                           }`}
