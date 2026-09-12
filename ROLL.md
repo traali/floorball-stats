@@ -20,3 +20,8 @@ Append-only record of decisions, contract versions, and dispensations.
 - **Scope:** `floorball-stats` Vite SPA
 - **Verdict:** PASS
 - **Summary:** Search / browse / club / player / group routes committed. Age chips on competition. Timeline scorers link to player pages. Finnish V/T/H form. Grok preview is a workbench only; this monastery was not overwritten with TanStack Start.
+
+## 2026-09-12 — Torneopal Cloudflare cache (house)
+- **Office / Author:** Master of Works
+- **Verdict:** PASS (code). Cellarer must deploy taso-proxy.
+- **Summary:** Origin `spl.torneopal.net` caches empty 403s (`cf-cache-status: HIT`). Clients now retry via `taso-proxy.sakkoja.workers.dev/{spl,ssbl,basket,volley}` then origin with `_cb` cache-bust. Worker no longer stores 4xx (`Cache-Control: no-store`) and bypasses origin 403 TTL. Played matches stay immutable in Cache API.

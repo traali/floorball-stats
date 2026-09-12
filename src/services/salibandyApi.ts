@@ -31,6 +31,7 @@ import type {
 } from '../types/salibandy'
 
 const API_BASE = 'https://salibandy-api.torneopal.net/taso/rest'
+const TASO_PROXY = 'https://taso-proxy.sakkoja.workers.dev/ssbl'
 const SALIBANDY_KEY = 'zsn3anknxzcfzc23k53jqdcd4pymutsf'
 
 const reqHeaders = {
@@ -76,18 +77,34 @@ async function tasoGet<T>(path: string, cacheKey?: string, ttl?: number): Promis
   const key = cacheKey || path
   const cached = cacheGet<T>(key, ttl)
   if (cached) return cached
-  try {
-    const res = await fetch(`${API_BASE}/${path}`, { headers: reqHeaders })
-    if (!res.ok) return null
-    const data = (await res.json()) as T & { call?: { status?: string } }
-    const status = String(data?.call?.status || '').toLowerCase()
-    if (status && status !== 'ok') return null
-    cacheSet(key, data)
-    return data
-  } catch (err) {
-    console.error('[SALIBANDY_API]', path, err)
-    return null
+
+  const sep = path.includes('?') ? '&' : '?'
+  const urls = [
+    `${TASO_PROXY}/${path}`,
+    `${API_BASE}/${path}`,
+    `${API_BASE}/${path}${sep}_cb=${Date.now()}`,
+  ]
+
+  for (const url of urls) {
+    try {
+      const viaProxy = url.includes('taso-proxy')
+      const res = await fetch(url, {
+        headers: viaProxy ? { Accept: 'application/json' } : reqHeaders,
+      })
+      if (!res.ok) continue
+      const text = await res.text()
+      const start = text.indexOf('{')
+      if (start < 0) continue
+      const data = JSON.parse(text.slice(start)) as T & { call?: { status?: string } }
+      const status = String(data?.call?.status || '').toLowerCase()
+      if (status && status !== 'ok') continue
+      cacheSet(key, data)
+      return data
+    } catch (err) {
+      console.warn('[SALIBANDY_API]', url, err)
+    }
   }
+  return null
 }
 
 function str(v: unknown, fallback = ''): string {
@@ -142,12 +159,8 @@ export function parseSalibandyQuery(raw: string):
 
 export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMatchDetail | null> {
   try {
-    const url = `${API_BASE}/getMatch?match_id=${encodeURIComponent(matchId)}`
-    const res = await fetch(url, { headers: reqHeaders })
-
-    if (!res.ok) return null
-    const data = await res.json()
-    if (data.call?.status !== 'ok' || !data.match) return null
+    const data = await tasoGet<{ match?: any }>(`getMatch?match_id=${encodeURIComponent(matchId)}`, `getMatch:${matchId}`, 60_000)
+    if (!data?.match) return null
 
     const m = data.match
     const rawEvents: any[] = Array.isArray(m.events) ? m.events : []
