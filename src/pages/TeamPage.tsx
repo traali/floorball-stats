@@ -8,6 +8,7 @@ import {
   Users,
   Loader2,
   CheckCircle2,
+  Heart,
 } from 'lucide-react'
 import clsx from 'clsx'
 import {
@@ -21,6 +22,7 @@ import type {
   SalibandyTeamProfile,
 } from '../types/salibandy'
 import { FloorballStandingsTable } from '../components/FloorballStandingsTable'
+import { useFavorites } from '../hooks/useFavorites'
 
 type TeamTab = 'schedule' | 'roster' | 'standings'
 type SeasonScope = 'syksy' | 'kevat' | 'all'
@@ -29,6 +31,7 @@ export function TeamPage() {
   const { teamId = '' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
+  const { isFavorite, toggle } = useFavorites()
 
   const [profile, setProfile] = useState<SalibandyTeamProfile | null>(null)
   const [standings, setStandings] = useState<SalibandyStandingRow[]>([])
@@ -98,6 +101,7 @@ export function TeamPage() {
 
   const teamName = profile?.teamName || `Joukkue #${teamId}`
   const categoryName = profile?.categoryName || 'SSBL Salibandy'
+  const fav = isFavorite('team', teamId)
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
@@ -110,7 +114,7 @@ export function TeamPage() {
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-black text-white">{teamName}</h1>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
@@ -130,6 +134,21 @@ export function TeamPage() {
             </button>
           ) : null}
         </div>
+        <button
+          type="button"
+          onClick={() =>
+            toggle({
+              kind: 'team',
+              id: teamId,
+              name: teamName,
+              subtitle: [profile?.clubName, categoryName].filter(Boolean).join(' · '),
+            })
+          }
+          className={`p-2 rounded-full border shrink-0 ${fav ? 'border-rose-400 text-rose-400' : 'border-slate-700 text-slate-400'}`}
+          aria-label={fav ? 'Poista suosikeista' : 'Lisää suosikkeihin'}
+        >
+          <Heart className={`w-5 h-5 ${fav ? 'fill-current' : ''}`} />
+        </button>
       </div>
 
       {/* Season & Half Selector (Syksy 2026, Kevät 2026, Koko vuosi) */}
