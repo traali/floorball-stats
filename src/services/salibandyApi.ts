@@ -39,20 +39,47 @@ const reqHeaders = {
   Referer: 'https://tulospalvelu.salibandy.fi/',
 }
 
-type CacheEntry = { at: number; data: unknown }
+type CacheEntry = { at: number; data: unknown; ttl: number }
 const memCache = new Map<string, CacheEntry>()
-const CACHE_TTL_MS = 10 * 60 * 1000
-const CLUBS_TTL_MS = 30 * 60 * 1000
+const CACHE_TTL_MS = 5 * 60 * 1000
+const CLUBS_TTL_MS = 5 * 60 * 1000
+const UPCOMING_TTL_MS = 30 * 1000
+const ROSTER_TTL_MS = 60 * 1000
+const LIVE_STATUSES = new Set(['live', 'started', 'playing', 'inplay', 'in_play', 'ongoing', '2', 'interrupted'])
 
-function cacheGet<T>(key: string, ttl = CACHE_TTL_MS): T | null {
+function matchPhase(data: unknown): 'live' | 'upcoming' | 'played' | 'none' {
+  const rec = data && typeof data === 'object' ? (data as Record<string, unknown>) : null
+  const match = (rec?.match && typeof rec.match === 'object' ? rec.match : rec) as Record<string, unknown> | null
+  if (!match) return 'none'
+  const st = String(match.status || '').toLowerCase().trim()
+  if (LIVE_STATUSES.has(st) || st.includes('live') || String(match.time || '').includes("'")) return 'live'
+  if (st === 'played' || st === '1' || st === 'finished') return 'played'
+  if ('status' in match || 'team_A_name' in match || 'match_id' in match) return 'upcoming'
+  return 'none'
+}
+
+function ttlForPayload(path: string, data: unknown, fallback: number): number {
+  const phase = matchPhase(data)
+  if (phase === 'live') return 0
+  if (path.startsWith('getMatch')) return phase === 'played' ? CACHE_TTL_MS : UPCOMING_TTL_MS
+  if (path.startsWith('getMatches')) {
+    const matches = data && typeof data === 'object' ? (data as { matches?: unknown[] }).matches : null
+    if (Array.isArray(matches) && matches.some((m) => matchPhase(m) === 'live')) return 0
+    return UPCOMING_TTL_MS
+  }
+  if (path.startsWith('getTeam') || path.startsWith('getPlayer') || path.startsWith('getGroup')) return ROSTER_TTL_MS
+  return fallback
+}
+
+function cacheGet<T>(key: string): T | null {
   const hit = memCache.get(key)
-  if (hit && Date.now() - hit.at < ttl) return hit.data as T
+  if (hit && Date.now() - hit.at < hit.ttl) return hit.data as T
   if (typeof sessionStorage === 'undefined') return null
   try {
     const raw = sessionStorage.getItem(`sb:${key}`)
     if (!raw) return null
     const parsed = JSON.parse(raw) as CacheEntry
-    if (Date.now() - parsed.at < ttl) {
+    if (Date.now() - parsed.at < (parsed.ttl || CACHE_TTL_MS)) {
       memCache.set(key, parsed)
       return parsed.data as T
     }
@@ -62,8 +89,9 @@ function cacheGet<T>(key: string, ttl = CACHE_TTL_MS): T | null {
   return null
 }
 
-function cacheSet(key: string, data: unknown) {
-  const entry: CacheEntry = { at: Date.now(), data }
+function cacheSet(key: string, data: unknown, ttl: number) {
+  if (ttl <= 0) return
+  const entry: CacheEntry = { at: Date.now(), data, ttl }
   memCache.set(key, entry)
   if (typeof sessionStorage === 'undefined') return
   try {
@@ -75,7 +103,7 @@ function cacheSet(key: string, data: unknown) {
 
 async function tasoGet<T>(path: string, cacheKey?: string, ttl?: number): Promise<T | null> {
   const key = cacheKey || path
-  const cached = cacheGet<T>(key, ttl)
+  const cached = cacheGet<T>(key)
   if (cached) return cached
 
   const sep = path.includes('?') ? '&' : '?'
@@ -98,7 +126,7 @@ async function tasoGet<T>(path: string, cacheKey?: string, ttl?: number): Promis
       const data = JSON.parse(text.slice(start)) as T & { call?: { status?: string } }
       const status = String(data?.call?.status || '').toLowerCase()
       if (status && status !== 'ok') continue
-      cacheSet(key, data)
+      cacheSet(key, data, ttlForPayload(path, data, ttl ?? CACHE_TTL_MS))
       return data
     } catch (err) {
       console.warn('[SALIBANDY_API]', url, err)
