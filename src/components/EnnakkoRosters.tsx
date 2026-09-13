@@ -1,4 +1,3 @@
-import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, Star } from 'lucide-react'
 import type { SalibandyRosterPlayer } from '../types/salibandy'
@@ -72,16 +71,20 @@ export function EnnakkoRosters({
   awayName,
   homeRoster,
   awayRoster,
+  upcoming = true,
 }: {
   homeName: string
   awayName: string
   homeRoster: SalibandyRosterPlayer[]
   awayRoster: SalibandyRosterPlayer[]
+  upcoming?: boolean
 }) {
   return (
     <section className="space-y-3">
       <p className="text-xs text-slate-400">
-        Ennakko — pelaajakortit kauden maaleilla ja syötöillä. Avaa kortti nähdäksesi ottelut (uusin ensin, harmaa = ei pelannut).
+        {upcoming
+          ? 'Ennakko — kausikokoonpano ja pelaajakortit (G+A=P). Avaa kortti nähdäksesi ottelut (uusin ensin, harmaa = ei pelannut).'
+          : 'Kokoonpano — pelaajakortit kauden maaleilla ja syötöillä. Avaa kortti nähdäksesi ottelut.'}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Column teamName={homeName} roster={homeRoster} />

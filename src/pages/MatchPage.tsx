@@ -10,6 +10,7 @@ import {
   Swords,
   Share2,
   Loader2,
+  Users,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { PeriodScoreCard } from '../components/PeriodScoreCard'
@@ -35,7 +36,7 @@ import type {
   SalibandyRosterPlayer,
 } from '../types/salibandy'
 
-type MatchTab = 'match' | 'points' | 'goalies' | 'special_teams' | 'standings' | 'opponents' | 'export'
+type MatchTab = 'match' | 'roster' | 'points' | 'goalies' | 'special_teams' | 'standings' | 'opponents' | 'export'
 
 export function MatchPage() {
   const { matchId = '' } = useParams()
@@ -57,6 +58,8 @@ export function MatchPage() {
       if (m) {
         setMatch(m)
         setLeaders(computePlayerLeaders(m))
+        setHomeRoster(m.homeRoster || [])
+        setAwayRoster(m.awayRoster || [])
         const [group, home, away] = await Promise.all([
           m.competitionId && m.categoryId && m.groupId
             ? fetchSalibandyGroup(m.competitionId, m.categoryId, m.groupId)
@@ -65,8 +68,8 @@ export function MatchPage() {
           m.awayTeamId ? fetchSalibandyTeamRoster(m.awayTeamId) : Promise.resolve([]),
         ])
         if (group) setStandings(mapGroupTeamsToStandings(group.teams, group.matches))
-        setHomeRoster(home)
-        setAwayRoster(away)
+        if (home.length) setHomeRoster(home)
+        if (away.length) setAwayRoster(away)
         const startTime = m.date ? `${m.date}T${(m.time || '00:00').padEnd(5, '0')}:00` : ''
         try {
           window.parent?.postMessage(
@@ -169,6 +172,18 @@ export function MatchPage() {
           Ottelukeskus
         </button>
         <button
+          onClick={() => setActiveTab('roster')}
+          className={clsx(
+            'flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap',
+            activeTab === 'roster'
+              ? 'bg-[#3A506B] text-[#6FFFE9] shadow-md'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          )}
+        >
+          <Users className="w-3.5 h-3.5 text-[#5BC0BE]" />
+          Kokoonpano
+        </button>
+        <button
           onClick={() => setActiveTab('points')}
           className={clsx(
             'flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap',
@@ -245,14 +260,13 @@ export function MatchPage() {
       {/* Tab Views */}
       {activeTab === 'match' && (
         <div className="space-y-6">
-          {(match.phase === 'upcoming' || (match.date && match.date > new Date().toISOString().slice(0, 10)) || homeRoster.length > 0 || awayRoster.length > 0) && (
-            <EnnakkoRosters
-              homeName={match.homeTeamName}
-              awayName={match.awayTeamName}
-              homeRoster={homeRoster}
-              awayRoster={awayRoster}
-            />
-          )}
+          <EnnakkoRosters
+            homeName={match.homeTeamName}
+            awayName={match.awayTeamName}
+            homeRoster={homeRoster}
+            awayRoster={awayRoster}
+            upcoming={match.phase === 'upcoming'}
+          />
           {match.phase !== 'upcoming' && !(match.date && match.date > new Date().toISOString().slice(0, 10)) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <TimelineEventsList goals={match.goals} penalties={match.penalties} />
@@ -267,6 +281,16 @@ export function MatchPage() {
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === 'roster' && (
+        <EnnakkoRosters
+          homeName={match.homeTeamName}
+          awayName={match.awayTeamName}
+          homeRoster={homeRoster}
+          awayRoster={awayRoster}
+          upcoming={match.phase === 'upcoming'}
+        />
       )}
 
       {activeTab === 'points' && (

@@ -97,6 +97,9 @@ export interface SalibandyMatchDetail {
   saves: SalibandySaveEvent[]
   goalkeepers: SalibandyGoalkeeperStats
   totalEvents: number
+  /** Season roster / published lineup (Ennakko cards). */
+  homeRoster: SalibandyRosterPlayer[]
+  awayRoster: SalibandyRosterPlayer[]
 }
 
 export interface SalibandyPlayerLeader {

@@ -314,6 +314,8 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
           ? 'played'
           : 'upcoming'
 
+    const lineups = extractMatchRosters(m)
+
     return {
       matchId: String(m.match_id || matchId),
       matchNumber: m.match_number,
@@ -358,6 +360,8 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
         },
       },
       totalEvents: rawEvents.length,
+      homeRoster: lineups.home,
+      awayRoster: lineups.away,
     }
   } catch (err) {
     console.error('[SALIBANDY_API]', err)
@@ -366,30 +370,98 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
 }
 
 export async function fetchSalibandyTeamRoster(teamId: string): Promise<SalibandyRosterPlayer[]> {
-  const data = await tasoGet<{ team?: { players?: unknown[] } }>(
+  const paths = [
     `getTeam?team_id=${encodeURIComponent(teamId)}`,
-    `getTeam:${teamId}`,
-  )
-  const players = data?.team?.players
-  if (!Array.isArray(players)) return []
-  return players.map((p) => mapRosterPlayer(p))
+    `getTeam?team_id=${encodeURIComponent(teamId)}&players=1`,
+  ]
+  for (const path of paths) {
+    const data = await tasoGet<{ team?: { players?: unknown[] } }>(path, path.startsWith('getTeam?') ? `getTeam:${teamId}:${path.includes('players') ? 'p1' : 'plain'}` : path)
+    const players = data?.team?.players
+    if (Array.isArray(players) && players.length > 0) {
+      return players.map((p) => mapRosterPlayer(p)).filter((p) => p.playerId && p.fullName)
+    }
+  }
+  return []
 }
 
-function mapRosterPlayer(p: any): SalibandyRosterPlayer {
+export function mapRosterPlayer(p: any): SalibandyRosterPlayer {
+  const first = str(p.first_name || p.firstname || '')
+  const last = str(p.last_name || p.lastname || '')
+  const full = `${first} ${last}`.trim() || str(p.player_name || p.name || p.fullname || '')
+  const goals = pickNum(p, ['goals', 'g', 'maalit', 'player_goals', 'stat_goals'])
+  const assists = pickNum(p, ['assists', 'a', 'syotot', 'syötöt', 'player_assists'])
   return {
-    playerId: String(p.player_id),
-    firstName: String(p.first_name || ''),
-    lastName: String(p.last_name || ''),
-    fullName: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
-    shirtNumber: String(p.shirt_number || ''),
-    birthYear: String(p.birthyear || ''),
-    isCaptain: p.captain === '1' || p.captain === 'yes',
-    imageUrl: p.img_url || undefined,
-    goals: Number(p.goals || 0),
-    assists: Number(p.assists || 0),
-    points: Number(p.goals || 0) + Number(p.assists || 0),
-    penaltiesMin: Number(p.suspensions || p.warnings || 0) * 2,
+    playerId: str(p.player_id || p.id || p.playerid),
+    firstName: first,
+    lastName: last,
+    fullName: full,
+    shirtNumber: str(p.shirt_number || p.number || p.jersey),
+    birthYear: str(p.birthyear || p.birth_year || ''),
+    isCaptain: p.captain === '1' || p.captain === 'yes' || p.captain === true,
+    imageUrl: p.img_url || p.image || undefined,
+    goals,
+    assists,
+    points: pickNum(p, ['points', 'p', 'tehopisteet'], goals + assists),
+    penaltiesMin: pickNum(p, ['penalties_min', 'pim', 'rm']) || pickNum(p, ['suspensions', 'warnings']) * 2,
   }
+}
+
+function asPlayerList(v: unknown): any[] {
+  if (Array.isArray(v)) return v
+  if (v && typeof v === 'object') return Object.values(v as Record<string, unknown>)
+  return []
+}
+
+function sideOfPlayer(p: any, homeId?: string, awayId?: string): 'home' | 'away' | null {
+  const team = str(p.team || p.team_code || p.side || p.team_ab).toUpperCase()
+  if (team === 'A' || team === 'HOME' || team === '1' || team === 'KOTI') return 'home'
+  if (team === 'B' || team === 'AWAY' || team === '2' || team === 'VIERAS') return 'away'
+  const tid = str(p.team_id || p.teamId)
+  if (homeId && tid && tid === homeId) return 'home'
+  if (awayId && tid && tid === awayId) return 'away'
+  return null
+}
+
+/** TASO getMatch lineup shapes: players[], team_A_players, lineups.A, team_A.players */
+export function extractMatchRosters(m: any): { home: SalibandyRosterPlayer[]; away: SalibandyRosterPlayer[] } {
+  const homeId = m?.team_A_id ? String(m.team_A_id) : undefined
+  const awayId = m?.team_B_id ? String(m.team_B_id) : undefined
+  const home: SalibandyRosterPlayer[] = []
+  const away: SalibandyRosterPlayer[] = []
+  const seenH = new Set<string>()
+  const seenA = new Set<string>()
+
+  const push = (raw: any, forced: 'home' | 'away' | null) => {
+    if (!raw || typeof raw !== 'object') return
+    const mapped = mapRosterPlayer(raw)
+    if (!mapped.playerId || mapped.playerId === 'undefined') return
+    if (!mapped.fullName) return
+    const side = forced || sideOfPlayer(raw, homeId, awayId)
+    if (side === 'home' && !seenH.has(mapped.playerId)) {
+      seenH.add(mapped.playerId)
+      home.push(mapped)
+    } else if (side === 'away' && !seenA.has(mapped.playerId)) {
+      seenA.add(mapped.playerId)
+      away.push(mapped)
+    }
+  }
+
+  for (const p of asPlayerList(m?.players)) push(p, sideOfPlayer(p, homeId, awayId))
+  for (const p of asPlayerList(m?.lineup)) push(p, sideOfPlayer(p, homeId, awayId))
+  for (const p of asPlayerList(m?.team_players)) push(p, sideOfPlayer(p, homeId, awayId))
+  for (const p of asPlayerList(m?.team_A_players)) push(p, 'home')
+  for (const p of asPlayerList(m?.team_B_players)) push(p, 'away')
+  for (const p of asPlayerList(m?.lineup_A)) push(p, 'home')
+  for (const p of asPlayerList(m?.lineup_B)) push(p, 'away')
+  for (const p of asPlayerList(m?.team_A?.players)) push(p, 'home')
+  for (const p of asPlayerList(m?.team_B?.players)) push(p, 'away')
+  const lu = m?.lineups
+  if (lu && typeof lu === 'object' && !Array.isArray(lu)) {
+    for (const p of asPlayerList(lu.A || lu.home || lu.team_A)) push(p, 'home')
+    for (const p of asPlayerList(lu.B || lu.away || lu.team_B)) push(p, 'away')
+  }
+
+  return { home, away }
 }
 
 export function determineSeasonHalf(dateStr?: string, categoryName?: string): 'syksy' | 'kevat' {

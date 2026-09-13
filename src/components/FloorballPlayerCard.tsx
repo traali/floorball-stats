@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
-import type { SalibandyPlayerMatch, SalibandyPlayerProfile, SalibandyTeamFixture } from '../types/salibandy'
+import type { SalibandyPlayerProfile, SalibandyTeamFixture } from '../types/salibandy'
 import { determineSeasonHalf, getSeasonYear } from '../services/salibandyApi'
 
 type Box = { result: 'V' | 'T' | 'H' | 'DNP'; date: string; opponent: string; matchId: string }
