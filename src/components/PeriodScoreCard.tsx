@@ -97,7 +97,7 @@ export function PeriodScoreCard({
       {pool.length > 0 && (
         <div className="mt-4 rounded-xl bg-[#0B132B]/80 border border-slate-800 p-3 space-y-1.5">
           <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            Päivän ottelut · sama tapahtuma
+            Päivän ottelut
           </h3>
           {pool.map((g) => {
             const here = g.matchId === match.matchId
