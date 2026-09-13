@@ -22,6 +22,7 @@ import { FloorballStandingsTable } from '../components/FloorballStandingsTable'
 import { MatchFormAndHistory } from '../components/CommonOpponents'
 import { MatchPreviewExport } from '../components/MatchPreviewExport'
 import { EnnakkoRosters } from '../components/EnnakkoRosters'
+import { useRosterPlayerForms } from '../hooks/useRosterPlayerForms'
 import {
   fetchSalibandyMatch,
   fetchSalibandyGroup,
@@ -54,6 +55,10 @@ export function MatchPage() {
   const [awayFx, setAwayFx] = useState<SalibandyTeamFixture[]>([])
   const [activeTab, setActiveTab] = useState<MatchTab>('match')
   const [loading, setLoading] = useState(true)
+  const profiles = useRosterPlayerForms([
+    ...homeRoster.map((p) => p.playerId),
+    ...awayRoster.map((p) => p.playerId),
+  ])
 
   useEffect(() => {
     async function loadMatch() {
@@ -294,6 +299,11 @@ export function MatchPage() {
             homeRoster={homeRoster}
             awayRoster={awayRoster}
             upcoming={match.phase === 'upcoming'}
+            profiles={profiles}
+            homeFixtures={homeFx}
+            awayFixtures={awayFx}
+            matchDate={match.date}
+            matchId={match.matchId}
           />
           <MatchFormAndHistory
             homeName={match.homeTeamName}
@@ -327,6 +337,11 @@ export function MatchPage() {
           homeRoster={homeRoster}
           awayRoster={awayRoster}
           upcoming={match.phase === 'upcoming'}
+          profiles={profiles}
+          homeFixtures={homeFx}
+          awayFixtures={awayFx}
+          matchDate={match.date}
+          matchId={match.matchId}
         />
       )}
 

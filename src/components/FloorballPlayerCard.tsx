@@ -3,35 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import type { SalibandyPlayerProfile, SalibandyTeamFixture } from '../types/salibandy'
 import { determineSeasonHalf, getSeasonYear } from '../services/salibandyApi'
+import { previousGamesForPlayer } from '../utils/playerForm'
+import { GameBoxes } from './GameBoxes'
 
-type Box = { result: 'V' | 'T' | 'H' | 'DNP'; date: string; opponent: string; matchId: string }
 type Scope = 'syksy' | 'kevat' | 'all'
-
-function GameBoxes({ boxes }: { boxes: Box[] }) {
-  if (!boxes.length) return null
-  const shown = boxes.slice(0, 18)
-  return (
-    <div>
-      <p className="text-[11px] text-slate-400 mb-1">Ottelut uusin ensin · harmaa = ei pelannut</p>
-      <span className="inline-flex items-center flex-wrap gap-0.5">
-        {shown.map((d, i) => {
-          const cls =
-            d.result === 'V' ? 'bg-emerald-400' :
-            d.result === 'H' ? 'bg-rose-400' :
-            d.result === 'T' ? 'bg-slate-500' :
-            'bg-slate-700 border border-slate-500'
-          return (
-            <span
-              key={`${d.matchId}-${i}`}
-              title={`${d.date} · ${d.opponent} · ${d.result === 'DNP' ? 'ei pelannut' : d.result}`}
-              className={`inline-block w-2.5 h-2.5 rounded-[3px] ${cls}`}
-            />
-          )
-        })}
-      </span>
-    </div>
-  )
-}
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
@@ -67,19 +42,16 @@ export function FloorballPlayerCard({
     [player.matches, half, year],
   )
 
-  const boxes: Box[] = useMemo(() => {
-    return [...fixtures]
-      .filter((f) => f.score && inScope(f.date, f.categoryName))
-      .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time))
-      .map((f) => {
-        const opponent = f.isHome ? f.awayTeam : f.homeTeam
-        let result: Box['result'] = 'DNP'
-        if (playedIds.has(f.matchId)) {
-          result = f.isWin ? 'V' : f.isDraw ? 'T' : 'H'
-        }
-        return { result, date: f.date, opponent, matchId: f.matchId }
-      })
-  }, [fixtures, half, year, player.matches])
+  const boxes = useMemo(
+    () =>
+      previousGamesForPlayer({
+        playerMatches: player.matches,
+        teamFixtures: fixtures,
+        year,
+        half,
+      }),
+    [player.matches, fixtures, half, year],
+  )
 
   const rows = useMemo(() => {
     const fromTeam = [...fixtures]
@@ -143,6 +115,7 @@ export function FloorballPlayerCard({
         <p className="text-[11px] text-slate-400">+/- {plus > 0 ? '+' : ''}{plus}</p>
       )}
 
+      <p className="text-[11px] text-slate-400">Ottelut uusin ensin · harmaa = ei pelannut</p>
       <GameBoxes boxes={boxes} />
 
       {player.teams.length > 0 && (

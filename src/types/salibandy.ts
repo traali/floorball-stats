@@ -323,6 +323,7 @@ export interface SalibandyPlayerMatch {
   awayTeam: string
   homeTeamId?: string
   awayTeamId?: string
+  teamId?: string
   scoreHome?: number
   scoreAway?: number
   categoryName: string

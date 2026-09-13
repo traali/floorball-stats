@@ -1,9 +1,36 @@
 import { useNavigate } from 'react-router-dom'
 import { Users, Star } from 'lucide-react'
-import type { SalibandyRosterPlayer } from '../types/salibandy'
+import type { SalibandyPlayerProfile, SalibandyRosterPlayer, SalibandyTeamFixture } from '../types/salibandy'
+import { previousGamesForPlayer } from '../utils/playerForm'
+import { GameBoxes } from './GameBoxes'
 
-function Card({ p }: { p: SalibandyRosterPlayer }) {
+function Card({
+  p,
+  profile,
+  teamFixtures,
+  year,
+  asOfDate,
+  excludeMatchId,
+}: {
+  p: SalibandyRosterPlayer
+  profile?: SalibandyPlayerProfile
+  teamFixtures: SalibandyTeamFixture[]
+  year: string
+  asOfDate?: string
+  excludeMatchId?: string
+}) {
   const navigate = useNavigate()
+  const prev = profile
+    ? previousGamesForPlayer({
+        playerMatches: profile.matches,
+        teamFixtures,
+        year,
+        half: 'all',
+        asOfDate,
+        excludeMatchId,
+      })
+    : []
+  const recent = prev.slice(0, 4)
   return (
     <button
       type="button"
@@ -32,6 +59,26 @@ function Card({ p }: { p: SalibandyRosterPlayer }) {
           <div className="text-sm font-black text-white">{p.points}</div>
         </div>
       </div>
+      {prev.length > 0 && (
+        <div className="mt-2 space-y-1">
+          <GameBoxes boxes={prev} />
+          {recent.map((g) => (
+            <div
+              key={g.matchId}
+              className={`flex items-center justify-between gap-2 text-[11px] ${
+                g.result === 'DNP' ? 'text-slate-500' : 'text-slate-300'
+              }`}
+            >
+              <span className="truncate">
+                {g.date.slice(5)} · {g.opponent}
+              </span>
+              <span className="shrink-0 font-mono">
+                {g.result === 'DNP' ? 'ei pelannut' : `${g.score} · ${g.goals}+${g.assists}=${g.goals + g.assists}p`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </button>
   )
 }
@@ -39,9 +86,19 @@ function Card({ p }: { p: SalibandyRosterPlayer }) {
 function Column({
   teamName,
   roster,
+  profiles,
+  teamFixtures,
+  year,
+  asOfDate,
+  excludeMatchId,
 }: {
   teamName: string
   roster: SalibandyRosterPlayer[]
+  profiles: Record<string, SalibandyPlayerProfile>
+  teamFixtures: SalibandyTeamFixture[]
+  year: string
+  asOfDate?: string
+  excludeMatchId?: string
 }) {
   const rows = [...roster].sort((a, b) => b.points - a.points || b.goals - a.goals)
   return (
@@ -58,7 +115,15 @@ function Column({
       ) : (
         <div className="grid grid-cols-1 gap-2">
           {rows.map((p) => (
-            <Card key={p.playerId} p={p} />
+            <Card
+              key={p.playerId}
+              p={p}
+              profile={profiles[p.playerId]}
+              teamFixtures={teamFixtures}
+              year={year}
+              asOfDate={asOfDate}
+              excludeMatchId={excludeMatchId}
+            />
           ))}
         </div>
       )}
@@ -72,23 +137,50 @@ export function EnnakkoRosters({
   homeRoster,
   awayRoster,
   upcoming = true,
+  profiles = {},
+  homeFixtures = [],
+  awayFixtures = [],
+  matchDate,
+  matchId,
 }: {
   homeName: string
   awayName: string
   homeRoster: SalibandyRosterPlayer[]
   awayRoster: SalibandyRosterPlayer[]
   upcoming?: boolean
+  profiles?: Record<string, SalibandyPlayerProfile>
+  homeFixtures?: SalibandyTeamFixture[]
+  awayFixtures?: SalibandyTeamFixture[]
+  matchDate?: string
+  matchId?: string
 }) {
+  const year = (matchDate || new Date().toISOString()).slice(0, 4)
   return (
     <section className="space-y-3">
       <p className="text-xs text-slate-400">
         {upcoming
-          ? 'Ennakko — kausikokoonpano ja pelaajakortit (G+A=P). Avaa kortti nähdäksesi ottelut (uusin ensin, harmaa = ei pelannut).'
-          : 'Kokoonpano — pelaajakortit kauden maaleilla ja syötöillä. Avaa kortti nähdäksesi ottelut.'}
+          ? 'Ennakko — kausikokoonpano ja pelaajakortit (G+A=P). Edelliset ottelut uusin ensin, harmaa = ei pelannut.'
+          : 'Kokoonpano — pelaajakortit. Edelliset ottelut uusin ensin, harmaa = ei pelannut.'}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Column teamName={homeName} roster={homeRoster} />
-        <Column teamName={awayName} roster={awayRoster} />
+        <Column
+          teamName={homeName}
+          roster={homeRoster}
+          profiles={profiles}
+          teamFixtures={homeFixtures}
+          year={year}
+          asOfDate={matchDate}
+          excludeMatchId={matchId}
+        />
+        <Column
+          teamName={awayName}
+          roster={awayRoster}
+          profiles={profiles}
+          teamFixtures={awayFixtures}
+          year={year}
+          asOfDate={matchDate}
+          excludeMatchId={matchId}
+        />
       </div>
     </section>
   )

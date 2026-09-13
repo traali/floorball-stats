@@ -20,10 +20,10 @@ export function PlayerPage() {
       const p = await fetchSalibandyPlayer(playerId)
       if (cancelled) return
       setPlayer(p)
-      const teamId = p?.teams[0]?.teamId
-      if (teamId) {
-        const fx = await fetchSalibandyTeamFixtures(teamId)
-        if (!cancelled) setFixtures(fx)
+      const teamIds = [...new Set((p?.teams || []).map((t) => t.teamId).filter(Boolean))]
+      if (teamIds.length) {
+        const lists = await Promise.all(teamIds.map((id) => fetchSalibandyTeamFixtures(id)))
+        if (!cancelled) setFixtures(lists.flat())
       }
       setLoading(false)
     }

@@ -926,6 +926,7 @@ function mapPlayerMatch(m: any): SalibandyPlayerMatch {
     awayTeam: str(m.team_B_name, 'Vieras'),
     homeTeamId: numericId(m.team_A_id),
     awayTeamId: numericId(m.team_B_id),
+    teamId: numericId(m.team_id),
     scoreHome,
     scoreAway,
     categoryName: str(m.category_name),
