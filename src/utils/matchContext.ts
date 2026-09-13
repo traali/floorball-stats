@@ -91,7 +91,6 @@ export function commonOpponents(
   const homeMap = new Map<string, SalibandyTeamFixture>()
   for (const f of played(homeFixtures)) {
     const k = keyOf(f, homeId)
-    if (k.endsWith(`id:${awayId || 'x'}`) || k.endsWith(`n:${''}`)) continue
     if (!homeMap.has(k)) homeMap.set(k, f)
   }
   const rows: CommonRow[] = []
@@ -111,4 +110,23 @@ export function commonOpponents(
     })
   }
   return rows.slice(0, 8)
+}
+
+export function sameDayPool(
+  buckets: SalibandyTeamFixture[][],
+  date: string,
+  current?: SalibandyTeamFixture,
+): SalibandyTeamFixture[] {
+  const map = new Map<string, SalibandyTeamFixture>()
+  if (current?.matchId) map.set(current.matchId, current)
+  for (const list of buckets) {
+    for (const f of list) {
+      if (!f.matchId || f.date !== date) continue
+      if (!map.has(f.matchId)) map.set(f.matchId, f)
+    }
+  }
+  return [...map.values()].sort((a, b) => {
+    const c = formatClock(a.time).localeCompare(formatClock(b.time))
+    return c !== 0 ? c : a.matchId.localeCompare(b.matchId)
+  })
 }

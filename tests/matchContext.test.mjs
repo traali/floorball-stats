@@ -6,6 +6,7 @@ import {
   headToHead,
   commonOpponents,
   recentForm,
+  sameDayPool,
 } from '../src/utils/matchContext.ts'
 
 describe('match clock + upcoming', () => {
@@ -48,5 +49,25 @@ describe('form / h2h / common opponents', () => {
     assert.equal(rows[0].opponent, 'C')
     assert.equal(rows[0].home.score, '5–2')
     assert.equal(rows[0].away.score, '1–8')
+  })
+})
+
+describe('same-day tournament pool', () => {
+  it('puts both games on one card in kickoff order', () => {
+    const current = {
+      matchId: '949661', date: '2026-09-13', time: '16:00:00',
+      homeTeam: 'SB Vantaa Orange', awayTeam: 'Westend Indians Yellow',
+      isHome: true, venueName: 'Tuusula', categoryName: 'U14',
+    }
+    const later = {
+      matchId: '949662', date: '2026-09-13', time: '17:45:00',
+      homeTeam: 'Westend Indians Yellow', awayTeam: 'Oilers',
+      isHome: false, venueName: 'Tuusula', categoryName: 'U14',
+    }
+    const otherDay = { ...later, matchId: 'x', date: '2026-09-14' }
+    const pool = sameDayPool([[later, otherDay]], '2026-09-13', current)
+    assert.equal(pool.length, 2)
+    assert.equal(pool[0].matchId, '949661')
+    assert.equal(pool[1].time, '17:45:00')
   })
 })

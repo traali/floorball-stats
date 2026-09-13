@@ -30,6 +30,7 @@ import {
   mapGroupTeamsToStandings,
   computePlayerLeaders,
 } from '../services/salibandyApi'
+import { sameDayPool } from '../utils/matchContext'
 import type {
   SalibandyMatchDetail,
   SalibandyPlayerLeader,
@@ -162,8 +163,27 @@ export function MatchPage() {
         </div>
       </div>
 
-      {/* Main 3-Period Score Card */}
-      <PeriodScoreCard match={match} />
+      {/* Main score card + same-day tournament games */}
+      <PeriodScoreCard
+        match={match}
+        dayGames={sameDayPool(
+          [homeFx, awayFx],
+          match.date,
+          {
+            matchId: match.matchId,
+            date: match.date,
+            time: match.time,
+            homeTeam: match.homeTeamName,
+            awayTeam: match.awayTeamName,
+            homeTeamId: match.homeTeamId,
+            awayTeamId: match.awayTeamId,
+            isHome: true,
+            venueName: match.venueName,
+            categoryName: match.categoryName,
+            score: match.phase === 'upcoming' ? undefined : `${match.scoreHome}–${match.scoreAway}`,
+          },
+        )}
+      />
 
       {/* Detail Sub-Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 pb-1 border-b border-slate-800 text-xs font-semibold">

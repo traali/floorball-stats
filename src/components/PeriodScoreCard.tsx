@@ -1,15 +1,22 @@
 import { useNavigate } from 'react-router-dom'
-import type { SalibandyMatchDetail } from '../types/salibandy'
+import type { SalibandyMatchDetail, SalibandyTeamFixture } from '../types/salibandy'
 import { MapPin, Calendar, Clock, Trophy } from 'lucide-react'
-import { formatClock } from '../utils/matchContext'
+import { formatClock, isKickoffUpcoming } from '../utils/matchContext'
 
-export function PeriodScoreCard({ match }: { match: SalibandyMatchDetail }) {
+export function PeriodScoreCard({
+  match,
+  dayGames = [],
+}: {
+  match: SalibandyMatchDetail
+  dayGames?: SalibandyTeamFixture[]
+}) {
   const navigate = useNavigate()
   const upcoming = match.phase === 'upcoming'
   const live = match.phase === 'live'
   const isHomeWinner = !upcoming && !live && match.scoreHome > match.scoreAway
   const isAwayWinner = !upcoming && !live && match.scoreAway > match.scoreHome
   const clock = formatClock(match.time) || match.time
+  const pool = dayGames.length >= 2 ? dayGames : []
 
   const badge = upcoming
     ? { label: 'Ennakko', className: 'text-amber-300 bg-amber-500/10 border-amber-500/30' }
@@ -86,6 +93,40 @@ export function PeriodScoreCard({ match }: { match: SalibandyMatchDetail }) {
           )}
         </div>
       </div>
+
+      {pool.length > 0 && (
+        <div className="mt-4 rounded-xl bg-[#0B132B]/80 border border-slate-800 p-3 space-y-1.5">
+          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            Päivän ottelut · sama tapahtuma
+          </h3>
+          {pool.map((g) => {
+            const here = g.matchId === match.matchId
+            const t = formatClock(g.time) || g.time
+            const unplayed = !g.score || isKickoffUpcoming(g.date, g.time)
+            return (
+              <button
+                key={g.matchId}
+                type="button"
+                onClick={() => !here && navigate(`/match/${g.matchId}`)}
+                className={`w-full text-left rounded-lg px-2.5 py-2 flex items-center justify-between gap-2 ${
+                  here ? 'bg-[#3A506B]/70 border border-[#5BC0BE]/40' : 'bg-[#1C2541] border border-slate-700/50'
+                }`}
+              >
+                <span className="min-w-0">
+                  <span className="font-black tabular-nums text-[#6FFFE9] mr-2">{t}</span>
+                  <span className="text-xs font-semibold text-slate-100 break-words">
+                    {g.homeTeam} – {g.awayTeam}
+                  </span>
+                  {here ? <span className="ml-1 text-[10px] text-amber-300">tämä</span> : null}
+                </span>
+                <span className="shrink-0 text-xs font-bold tabular-nums text-slate-300">
+                  {unplayed ? 'vs' : g.score}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {!upcoming && !live && (
         <div className="mt-4 bg-[#0B132B]/80 rounded-xl p-3 border border-slate-800">
