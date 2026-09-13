@@ -19,13 +19,14 @@ import { LeaderboardTable } from '../components/LeaderboardTable'
 import { GoalkeeperBattleCard } from '../components/GoalkeeperBattleCard'
 import { SpecialTeamsCard } from '../components/SpecialTeamsCard'
 import { FloorballStandingsTable } from '../components/FloorballStandingsTable'
-import { CommonOpponents } from '../components/CommonOpponents'
+import { MatchFormAndHistory } from '../components/CommonOpponents'
 import { MatchPreviewExport } from '../components/MatchPreviewExport'
 import { EnnakkoRosters } from '../components/EnnakkoRosters'
 import {
   fetchSalibandyMatch,
   fetchSalibandyGroup,
   fetchSalibandyTeamRoster,
+  fetchSalibandyTeamFixtures,
   mapGroupTeamsToStandings,
   computePlayerLeaders,
 } from '../services/salibandyApi'
@@ -34,6 +35,7 @@ import type {
   SalibandyPlayerLeader,
   SalibandyStandingRow,
   SalibandyRosterPlayer,
+  SalibandyTeamFixture,
 } from '../types/salibandy'
 
 type MatchTab = 'match' | 'roster' | 'points' | 'goalies' | 'special_teams' | 'standings' | 'opponents' | 'export'
@@ -47,6 +49,8 @@ export function MatchPage() {
   const [standings, setStandings] = useState<SalibandyStandingRow[]>([])
   const [homeRoster, setHomeRoster] = useState<SalibandyRosterPlayer[]>([])
   const [awayRoster, setAwayRoster] = useState<SalibandyRosterPlayer[]>([])
+  const [homeFx, setHomeFx] = useState<SalibandyTeamFixture[]>([])
+  const [awayFx, setAwayFx] = useState<SalibandyTeamFixture[]>([])
   const [activeTab, setActiveTab] = useState<MatchTab>('match')
   const [loading, setLoading] = useState(true)
 
@@ -60,16 +64,20 @@ export function MatchPage() {
         setLeaders(computePlayerLeaders(m))
         setHomeRoster(m.homeRoster || [])
         setAwayRoster(m.awayRoster || [])
-        const [group, home, away] = await Promise.all([
+        const [group, home, away, hfx, afx] = await Promise.all([
           m.competitionId && m.categoryId && m.groupId
             ? fetchSalibandyGroup(m.competitionId, m.categoryId, m.groupId)
             : Promise.resolve(null),
           m.homeTeamId ? fetchSalibandyTeamRoster(m.homeTeamId) : Promise.resolve([]),
           m.awayTeamId ? fetchSalibandyTeamRoster(m.awayTeamId) : Promise.resolve([]),
+          m.homeTeamId ? fetchSalibandyTeamFixtures(m.homeTeamId) : Promise.resolve([]),
+          m.awayTeamId ? fetchSalibandyTeamFixtures(m.awayTeamId) : Promise.resolve([]),
         ])
         if (group) setStandings(mapGroupTeamsToStandings(group.teams, group.matches))
         if (home.length) setHomeRoster(home)
         if (away.length) setAwayRoster(away)
+        setHomeFx(hfx)
+        setAwayFx(afx)
         const startTime = m.date ? `${m.date}T${(m.time || '00:00').padEnd(5, '0')}:00` : ''
         try {
           window.parent?.postMessage(
@@ -158,7 +166,7 @@ export function MatchPage() {
       <PeriodScoreCard match={match} />
 
       {/* Detail Sub-Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-800 text-xs font-semibold scrollbar-none">
+      <div className="flex flex-wrap items-center gap-1.5 pb-1 border-b border-slate-800 text-xs font-semibold">
         <button
           onClick={() => setActiveTab('match')}
           className={clsx(
@@ -267,7 +275,16 @@ export function MatchPage() {
             awayRoster={awayRoster}
             upcoming={match.phase === 'upcoming'}
           />
-          {match.phase !== 'upcoming' && !(match.date && match.date > new Date().toISOString().slice(0, 10)) && (
+          <MatchFormAndHistory
+            homeName={match.homeTeamName}
+            awayName={match.awayTeamName}
+            homeId={match.homeTeamId}
+            awayId={match.awayTeamId}
+            homeFixtures={homeFx}
+            awayFixtures={awayFx}
+            excludeMatchId={match.matchId}
+          />
+          {match.phase !== 'upcoming' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <TimelineEventsList goals={match.goals} penalties={match.penalties} />
               <div className="space-y-6">
@@ -329,7 +346,15 @@ export function MatchPage() {
       )}
 
       {activeTab === 'opponents' && (
-        <CommonOpponents homeTeam={match.homeTeamName} awayTeam={match.awayTeamName} />
+        <MatchFormAndHistory
+          homeName={match.homeTeamName}
+          awayName={match.awayTeamName}
+          homeId={match.homeTeamId}
+          awayId={match.awayTeamId}
+          homeFixtures={homeFx}
+          awayFixtures={awayFx}
+          excludeMatchId={match.matchId}
+        />
       )}
 
       {activeTab === 'export' && (

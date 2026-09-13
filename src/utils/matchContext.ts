@@ -1,0 +1,114 @@
+import type { SalibandyTeamFixture } from '../types/salibandy'
+
+export function formatClock(time: string): string {
+  const m = String(time || '').trim().match(/^(\d{1,2}):(\d{2})/)
+  if (!m) return ''
+  return `${m[1].padStart(2, '0')}:${m[2]}`
+}
+
+export function helsinkiStamp(d = new Date()): string {
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Helsinki',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+  const parts = Object.fromEntries(fmt.formatToParts(d).map((p) => [p.type, p.value]))
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`
+}
+
+export function isKickoffUpcoming(date: string, time: string, now = new Date()): boolean {
+  if (!date) return false
+  const clock = formatClock(time) || '00:00'
+  return `${date} ${clock}` > helsinkiStamp(now)
+}
+
+export type FormLetter = 'V' | 'T' | 'H'
+
+export function recentForm(
+  fixtures: SalibandyTeamFixture[],
+  excludeMatchId?: string,
+  n = 5,
+): SalibandyTeamFixture[] {
+  return [...fixtures]
+    .filter((f) => f.score && f.matchId !== excludeMatchId)
+    .sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`))
+    .slice(0, n)
+}
+
+export function formLetter(f: SalibandyTeamFixture): FormLetter {
+  if (f.isWin) return 'V'
+  if (f.isDraw) return 'T'
+  return 'H'
+}
+
+export function headToHead(
+  homeFixtures: SalibandyTeamFixture[],
+  awayTeamId: string | undefined,
+  awayTeamName: string,
+  excludeMatchId?: string,
+): SalibandyTeamFixture[] {
+  const away = (awayTeamName || '').toLowerCase()
+  return [...homeFixtures]
+    .filter((f) => {
+      if (excludeMatchId && f.matchId === excludeMatchId) return false
+      if (!f.score) return false
+      if (awayTeamId && (f.homeTeamId === awayTeamId || f.awayTeamId === awayTeamId)) return true
+      const opp = f.isHome ? f.awayTeam : f.homeTeam
+      return away && opp.toLowerCase() === away
+    })
+    .sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`))
+    .slice(0, 8)
+}
+
+export type CommonRow = {
+  opponent: string
+  opponentId?: string
+  home?: SalibandyTeamFixture
+  away?: SalibandyTeamFixture
+}
+
+export function commonOpponents(
+  homeFixtures: SalibandyTeamFixture[],
+  awayFixtures: SalibandyTeamFixture[],
+  homeId: string | undefined,
+  awayId: string | undefined,
+  excludeMatchId?: string,
+): CommonRow[] {
+  const played = (fx: SalibandyTeamFixture[]) =>
+    fx.filter((f) => f.score && f.matchId !== excludeMatchId)
+
+  const keyOf = (f: SalibandyTeamFixture, selfId?: string) => {
+    const oppId = f.isHome ? f.awayTeamId : f.homeTeamId
+    if (oppId && oppId !== selfId) return `id:${oppId}`
+    const name = f.isHome ? f.awayTeam : f.homeTeam
+    return `n:${name.toLowerCase()}`
+  }
+
+  const homeMap = new Map<string, SalibandyTeamFixture>()
+  for (const f of played(homeFixtures)) {
+    const k = keyOf(f, homeId)
+    if (k.endsWith(`id:${awayId || 'x'}`) || k.endsWith(`n:${''}`)) continue
+    if (!homeMap.has(k)) homeMap.set(k, f)
+  }
+  const rows: CommonRow[] = []
+  const seen = new Set<string>()
+  for (const f of played(awayFixtures)) {
+    const k = keyOf(f, awayId)
+    if (homeId && k === `id:${homeId}`) continue
+    const home = homeMap.get(k)
+    if (!home || seen.has(k)) continue
+    seen.add(k)
+    const opponent = f.isHome ? f.awayTeam : f.homeTeam
+    rows.push({
+      opponent,
+      opponentId: f.isHome ? f.awayTeamId : f.homeTeamId,
+      home,
+      away: f,
+    })
+  }
+  return rows.slice(0, 8)
+}

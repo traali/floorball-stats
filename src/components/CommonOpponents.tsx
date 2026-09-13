@@ -1,81 +1,134 @@
-import React from 'react'
-import { Swords, CheckCircle2, XCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Swords, History } from 'lucide-react'
+import type { SalibandyTeamFixture } from '../types/salibandy'
+import { commonOpponents, formLetter, headToHead, recentForm, type CommonRow } from '../utils/matchContext'
 
-interface OpponentMatch {
-  teamName: string
-  homeResult: { result: 'win' | 'draw' | 'loss'; score: string }
-  awayResult: { result: 'win' | 'draw' | 'loss'; score: string }
-}
-
-interface CommonOpponentsProps {
-  homeTeam: string
-  awayTeam: string
-}
-
-export const CommonOpponents: React.FC<CommonOpponentsProps> = ({ homeTeam, awayTeam }) => {
-  // Sample common opponents comparison from season schedule
-  const commonList: OpponentMatch[] = [
-    {
-      teamName: 'EräViikingit Sininen',
-      homeResult: { result: 'win', score: '8–4' },
-      awayResult: { result: 'win', score: '11–2' },
-    },
-    {
-      teamName: 'Oilers White',
-      homeResult: { result: 'loss', score: '3–6' },
-      awayResult: { result: 'win', score: '7–5' },
-    },
-    {
-      teamName: 'Tiikerit Sininen',
-      homeResult: { result: 'win', score: '9–5' },
-      awayResult: { result: 'win', score: '12–3' },
-    },
-  ]
-
+function Pill({ f }: { f?: SalibandyTeamFixture }) {
+  if (!f?.score) return <span className="text-[11px] text-slate-500">–</span>
+  const letter = formLetter(f)
+  const cls =
+    letter === 'V' ? 'text-emerald-300' : letter === 'H' ? 'text-rose-300' : 'text-slate-300'
   return (
-    <div className="bg-[#1C2541] rounded-2xl p-5 border border-slate-700/60 shadow-xl">
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-700/50">
-        <h3 className="font-bold text-sm tracking-wide text-slate-100 flex items-center gap-2">
-          <Swords className="w-4 h-4 text-[#5BC0BE]" />
-          Yhteiset Vastustajat & Kuntopuntari
-        </h3>
-        <span className="text-xs text-slate-400">Vertailu</span>
-      </div>
+    <span className={`font-mono text-xs font-bold ${cls}`}>
+      {f.score} {letter}
+    </span>
+  )
+}
 
-      <div className="space-y-3">
-        {commonList.map((opp) => (
-          <div
-            key={opp.teamName}
-            className="p-3 rounded-xl bg-[#0B132B]/60 border border-slate-800 flex items-center justify-between"
-          >
-            <div className="font-bold text-xs text-slate-200">{opp.teamName}</div>
-
-            <div className="flex items-center gap-4 text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-400 text-[11px] truncate max-w-[80px]">{homeTeam}:</span>
-                <span className="font-bold text-slate-200">{opp.homeResult.score}</span>
-                {opp.homeResult.result === 'win' ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                ) : (
-                  <XCircle className="w-3.5 h-3.5 text-rose-400" />
-                )}
-              </div>
-
-              <div className="h-4 w-[1px] bg-slate-700"></div>
-
-              <div className="flex items-center gap-1.5">
-                <span className="text-[#5BC0BE] text-[11px] truncate max-w-[80px]">{awayTeam}:</span>
-                <span className="font-bold text-slate-200">{opp.awayResult.score}</span>
-                {opp.awayResult.result === 'win' ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                ) : (
-                  <XCircle className="w-3.5 h-3.5 text-rose-400" />
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+function FormRow({ name, fixtures, excludeMatchId }: { name: string; fixtures: SalibandyTeamFixture[]; excludeMatchId?: string }) {
+  const rows = recentForm(fixtures, excludeMatchId, 5)
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-xs font-semibold truncate">{name}</span>
+      <span className="flex gap-1">
+        {rows.length === 0 ? (
+          <span className="text-[11px] text-slate-500">Ei pelattuja</span>
+        ) : (
+          rows.map((f) => {
+            const l = formLetter(f)
+            const bg = l === 'V' ? 'bg-emerald-500/80' : l === 'H' ? 'bg-rose-500/80' : 'bg-slate-500'
+            return (
+              <span
+                key={f.matchId}
+                title={`${f.date} ${f.homeTeam}–${f.awayTeam} ${f.score}`}
+                className={`w-6 h-6 rounded-md ${bg} text-[11px] font-black text-white grid place-items-center`}
+              >
+                {l}
+              </span>
+            )
+          })
+        )}
+      </span>
     </div>
   )
 }
+
+export function MatchFormAndHistory({
+  homeName,
+  awayName,
+  homeId,
+  awayId,
+  homeFixtures,
+  awayFixtures,
+  excludeMatchId,
+}: {
+  homeName: string
+  awayName: string
+  homeId?: string
+  awayId?: string
+  homeFixtures: SalibandyTeamFixture[]
+  awayFixtures: SalibandyTeamFixture[]
+  excludeMatchId?: string
+}) {
+  const navigate = useNavigate()
+  const h2h = headToHead(homeFixtures, awayId, awayName, excludeMatchId)
+  const common: CommonRow[] = commonOpponents(homeFixtures, awayFixtures, homeId, awayId, excludeMatchId)
+
+  return (
+    <div className="space-y-4">
+      <section className="bg-[#1C2541] rounded-2xl p-4 border border-slate-700/60">
+        <h3 className="font-bold text-sm mb-3">Edelliset ottelut</h3>
+        <div className="space-y-2">
+          <FormRow name={homeName} fixtures={homeFixtures} excludeMatchId={excludeMatchId} />
+          <FormRow name={awayName} fixtures={awayFixtures} excludeMatchId={excludeMatchId} />
+        </div>
+        <p className="text-[10px] text-slate-500 mt-2">V = voitto, T = tasapeli, H = tappio · uusin vasemmalla</p>
+      </section>
+
+      <section className="bg-[#1C2541] rounded-2xl p-4 border border-slate-700/60">
+        <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
+          <History className="w-4 h-4 text-[#5BC0BE]" />
+          Keskinäiset
+        </h3>
+        {h2h.length === 0 ? (
+          <p className="text-xs text-slate-500">Ei aiempia kohtaamisia TASOssa.</p>
+        ) : (
+          <div className="space-y-2">
+            {h2h.map((f) => (
+              <button
+                key={f.matchId}
+                type="button"
+                onClick={() => navigate(`/match/${f.matchId}`)}
+                className="w-full text-left rounded-xl bg-[#0B132B]/70 border border-slate-800 px-3 py-2 flex items-center justify-between"
+              >
+                <span className="text-xs text-slate-300">
+                  {f.date} · {f.homeTeam} – {f.awayTeam}
+                </span>
+                <span className="font-mono text-sm font-bold text-[#6FFFE9]">{f.score}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="bg-[#1C2541] rounded-2xl p-4 border border-slate-700/60">
+        <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
+          <Swords className="w-4 h-4 text-[#5BC0BE]" />
+          Yhteiset vastustajat
+        </h3>
+        {common.length === 0 ? (
+          <p className="text-xs text-slate-500">Ei yhteisiä pelattuja vastustajia vielä tällä kaudella.</p>
+        ) : (
+          <div className="space-y-2">
+            {common.map((row) => (
+              <div key={row.opponent} className="rounded-xl bg-[#0B132B]/70 border border-slate-800 px-3 py-2">
+                <p className="text-xs font-semibold text-slate-200 mb-1">{row.opponent}</p>
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span className="truncate mr-2">{homeName}</span>
+                  <Pill f={row.home} />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span className="truncate mr-2">{awayName}</span>
+                  <Pill f={row.away} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+/** @deprecated name kept for MatchPage tab */
+export const CommonOpponents = MatchFormAndHistory

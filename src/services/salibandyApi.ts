@@ -29,6 +29,7 @@ import type {
   SalibandyPlayerTeam,
   DiscoveryHit,
 } from '../types/salibandy'
+import { formatClock, isKickoffUpcoming } from '../utils/matchContext.ts'
 
 const API_BASE = 'https://salibandy-api.torneopal.net/taso/rest'
 const TASO_PROXY = 'https://taso-proxy.sakkoja.workers.dev/ssbl'
@@ -302,17 +303,29 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
 
     const st = String(m.status || '').toLowerCase().trim()
     const date = String(m.date || '')
+    const time = String(m.time || '')
     const today = new Date().toISOString().slice(0, 10)
-    const live = st === 'live' || st.includes('live') || st === '2' || String(m.time || '').includes("'")
-    const hasScore = m.fs_A != null && String(m.fs_A) !== '' && !(String(m.fs_A) === '0' && String(m.fs_B || '0') === '0' && rawEvents.length === 0 && date >= today)
-    // Future date always wins — Torneopal often sends status 0/1/Played on unplayed games.
+    const live = st === 'live' || st.includes('live') || st === '2' || time.includes("'")
+    const eventful = rawEvents.some((ev) => {
+      const c = String(ev.code || '')
+      return c === 'maali' || c === 'syotto' || c.includes('min') || c === 'torjunta'
+    })
+    const a = Number(m.fs_A)
+    const b = Number(m.fs_B || 0)
+    const zeroZero = (!Number.isFinite(a) && !Number.isFinite(b)) || (a === 0 && b === 0)
+    const kickoffFuture = isKickoffUpcoming(date, time)
+    // Torneopal often marks unplayed games as status 1/Played with 0-0.
     const phase: SalibandyMatchDetail['phase'] = live
       ? 'live'
-      : date > today || (date === today && !hasScore && st !== 'played' && st !== 'finished')
+      : !eventful && zeroZero && (kickoffFuture || date >= today || date === '')
         ? 'upcoming'
-        : hasScore || st === 'played' || st === 'finished'
+        : !eventful && zeroZero && date < today
           ? 'played'
-          : 'upcoming'
+          : eventful || (Number.isFinite(a) && !(a === 0 && b === 0 && date >= today))
+            ? 'played'
+            : 'upcoming'
+
+    const hasScore = phase !== 'upcoming' && Number.isFinite(a)
 
     const lineups = extractMatchRosters(m)
 
@@ -325,7 +338,7 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
       categoryId: m.category_id ? String(m.category_id) : undefined,
       groupId: m.group_id ? String(m.group_id) : undefined,
       date: String(m.date || ''),
-      time: String(m.time || ''),
+      time: formatClock(time) || time,
       venueName: String(m.venue_name || 'Peliareena'),
       venueLat: m.venue_lat ? Number(m.venue_lat) : undefined,
       venueLon: m.venue_lon ? Number(m.venue_lon) : undefined,
