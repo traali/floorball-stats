@@ -23,6 +23,7 @@ import type {
 } from '../types/salibandy'
 import { FloorballStandingsTable } from '../components/FloorballStandingsTable'
 import { useFavorites } from '../hooks/useFavorites'
+import { writeLastTeamId } from '../utils/teamSelection'
 
 type TeamTab = 'schedule' | 'roster' | 'standings'
 type SeasonScope = 'syksy' | 'kevat' | 'all'
@@ -60,6 +61,10 @@ export function TeamPage() {
     }
 
     loadTeam()
+  }, [teamId])
+
+  useEffect(() => {
+    writeLastTeamId(teamId)
   }, [teamId])
 
   const handleTabChange = (tab: TeamTab) => {
