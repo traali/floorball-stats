@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { parseFederationTeamId } from '../utils/teamSelection'
 
 export type FavKind = 'team' | 'player' | 'club'
 
@@ -16,7 +17,14 @@ function read(): FavoriteItem[] {
     const raw = localStorage.getItem(KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((item) => {
+      if (!item || typeof item !== 'object') return false
+      const favorite = item as FavoriteItem
+      if (!favorite.kind || !favorite.id || !favorite.name) return false
+      if (favorite.kind === 'team') return Boolean(parseFederationTeamId(favorite.id))
+      return true
+    })
   } catch {
     return []
   }
@@ -43,6 +51,7 @@ export function useFavorites() {
   )
 
   const toggle = useCallback((item: FavoriteItem) => {
+    if (item.kind === 'team' && !parseFederationTeamId(item.id)) return
     setFavorites((current) => {
       const exists = current.some((f) => f.kind === item.kind && f.id === item.id)
       const next = exists
