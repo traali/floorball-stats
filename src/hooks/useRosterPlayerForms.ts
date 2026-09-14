@@ -5,6 +5,8 @@ import type { SalibandyPlayerProfile } from '../types/salibandy'
 export function useRosterPlayerForms(playerIds: string[]) {
   const [byId, setById] = useState<Record<string, SalibandyPlayerProfile>>({})
 
+  const playerIdsKey = playerIds.join('|')
+
   useEffect(() => {
     const unique = [...new Set(playerIds.filter(Boolean))]
     if (!unique.length) {
@@ -28,7 +30,8 @@ export function useRosterPlayerForms(playerIds: string[]) {
     return () => {
       cancelled = true
     }
-  }, [playerIds.join('|')])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerIdsKey])
 
   return byId
 }

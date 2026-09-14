@@ -39,6 +39,7 @@ export function FloorballPlayerCard({
 
   const scopedMatches = useMemo(
     () => player.matches.filter((m) => inScope(m.date, m.categoryName)).sort((a, b) => b.date.localeCompare(a.date)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [player.matches, half, year],
   )
 
@@ -75,6 +76,7 @@ export function FloorballPlayerCard({
         }
       })
     return fromTeam.sort((a, b) => (b.date).localeCompare(a.date)).slice(0, 40)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fixtures, player.matches, half, year])
 
   const gp = scopedMatches.length
