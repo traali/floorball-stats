@@ -118,6 +118,8 @@ declare global {
   }
 }
 
+let _floorballMessageHandler: ((event: MessageEvent) => void) | null = null
+
 export function registerFloorballWebMCP(): ModelContextRegistry | undefined {
   if (typeof window === 'undefined') return
 
@@ -200,7 +202,10 @@ export function registerFloorballWebMCP(): ModelContextRegistry | undefined {
   if (typeof window !== 'undefined') {
     ;(window as unknown as { modelContext?: ModelContextRegistry }).modelContext = registry
 
-    window.addEventListener('message', async (event: MessageEvent) => {
+    if (_floorballMessageHandler) {
+      window.removeEventListener('message', _floorballMessageHandler)
+    }
+    const messageHandler = async (event: MessageEvent) => {
       const data = event.data
       if (!data || data.type !== 'webmcp:request' || !data.id) return
 
@@ -220,7 +225,9 @@ export function registerFloorballWebMCP(): ModelContextRegistry | undefined {
           error: { message: errorMessage },
         }, '*')
       }
-    })
+    }
+    _floorballMessageHandler = messageHandler
+    window.addEventListener('message', messageHandler)
 
     window.dispatchEvent(
       new CustomEvent('webmcp:ready', { detail: { location: 'navigator.modelContext & document.modelContext' } })
