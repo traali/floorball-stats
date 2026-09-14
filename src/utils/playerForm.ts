@@ -1,5 +1,5 @@
 import type { SalibandyPlayerMatch, SalibandyTeamFixture } from '../types/salibandy'
-import { determineSeasonHalf, getSeasonYear } from '../services/salibandyApi.ts'
+import { determineSeasonHalf, getSeasonYear } from '../services/salibandyApi'
 
 export type FormResult = 'V' | 'T' | 'H' | 'DNP'
 

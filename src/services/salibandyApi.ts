@@ -391,13 +391,13 @@ export async function fetchSalibandyTeamRoster(teamId: string): Promise<Saliband
     const data = await tasoGet<{ team?: { players?: unknown[] } }>(path, path.startsWith('getTeam?') ? `getTeam:${teamId}:${path.includes('players') ? 'p1' : 'plain'}` : path)
     const players = data?.team?.players
     if (Array.isArray(players) && players.length > 0) {
-      return players.map((p) => mapRosterPlayer(p)).filter((p) => p.playerId && p.fullName)
+      return players.map((p) => mapRosterPlayer(p as Record<string, unknown>)).filter((p) => p.playerId && p.fullName)
     }
   }
   return []
 }
 
-export function mapRosterPlayer(p: any): SalibandyRosterPlayer {
+export function mapRosterPlayer(p: Record<string, unknown>): SalibandyRosterPlayer {
   const first = str(p.first_name || p.firstname || '')
   const last = str(p.last_name || p.lastname || '')
   const full = `${first} ${last}`.trim() || str(p.player_name || p.name || p.fullname || '')
@@ -411,7 +411,7 @@ export function mapRosterPlayer(p: any): SalibandyRosterPlayer {
     shirtNumber: str(p.shirt_number || p.number || p.jersey),
     birthYear: str(p.birthyear || p.birth_year || ''),
     isCaptain: p.captain === '1' || p.captain === 'yes' || p.captain === true,
-    imageUrl: p.img_url || p.image || undefined,
+    imageUrl: (p.img_url as string) || (p.image as string) || undefined,
     goals,
     assists,
     points: pickNum(p, ['points', 'p', 'tehopisteet'], goals + assists),
@@ -419,13 +419,13 @@ export function mapRosterPlayer(p: any): SalibandyRosterPlayer {
   }
 }
 
-function asPlayerList(v: unknown): any[] {
+function asPlayerList(v: unknown): unknown[] {
   if (Array.isArray(v)) return v
   if (v && typeof v === 'object') return Object.values(v as Record<string, unknown>)
   return []
 }
 
-function sideOfPlayer(p: any, homeId?: string, awayId?: string): 'home' | 'away' | null {
+function sideOfPlayer(p: Record<string, unknown>, homeId?: string, awayId?: string): 'home' | 'away' | null {
   const team = str(p.team || p.team_code || p.side || p.team_ab).toUpperCase()
   if (team === 'A' || team === 'HOME' || team === '1' || team === 'KOTI') return 'home'
   if (team === 'B' || team === 'AWAY' || team === '2' || team === 'VIERAS') return 'away'
@@ -436,7 +436,7 @@ function sideOfPlayer(p: any, homeId?: string, awayId?: string): 'home' | 'away'
 }
 
 /** TASO getMatch lineup shapes: players[], team_A_players, lineups.A, team_A.players */
-export function extractMatchRosters(m: any): { home: SalibandyRosterPlayer[]; away: SalibandyRosterPlayer[] } {
+export function extractMatchRosters(m: Record<string, unknown>): { home: SalibandyRosterPlayer[]; away: SalibandyRosterPlayer[] } {
   const homeId = m?.team_A_id ? String(m.team_A_id) : undefined
   const awayId = m?.team_B_id ? String(m.team_B_id) : undefined
   const home: SalibandyRosterPlayer[] = []
@@ -444,12 +444,13 @@ export function extractMatchRosters(m: any): { home: SalibandyRosterPlayer[]; aw
   const seenH = new Set<string>()
   const seenA = new Set<string>()
 
-  const push = (raw: any, forced: 'home' | 'away' | null) => {
+  const push = (raw: unknown, forced: 'home' | 'away' | null) => {
     if (!raw || typeof raw !== 'object') return
-    const mapped = mapRosterPlayer(raw)
+    const rec = raw as Record<string, unknown>
+    const mapped = mapRosterPlayer(rec)
     if (!mapped.playerId || mapped.playerId === 'undefined') return
     if (!mapped.fullName) return
-    const side = forced || sideOfPlayer(raw, homeId, awayId)
+    const side = forced || sideOfPlayer(rec, homeId, awayId)
     if (side === 'home' && !seenH.has(mapped.playerId)) {
       seenH.add(mapped.playerId)
       home.push(mapped)
@@ -459,16 +460,18 @@ export function extractMatchRosters(m: any): { home: SalibandyRosterPlayer[]; aw
     }
   }
 
-  for (const p of asPlayerList(m?.players)) push(p, sideOfPlayer(p, homeId, awayId))
-  for (const p of asPlayerList(m?.lineup)) push(p, sideOfPlayer(p, homeId, awayId))
-  for (const p of asPlayerList(m?.team_players)) push(p, sideOfPlayer(p, homeId, awayId))
+  for (const p of asPlayerList(m?.players)) push(p, null)
+  for (const p of asPlayerList(m?.lineup)) push(p, null)
+  for (const p of asPlayerList(m?.team_players)) push(p, null)
   for (const p of asPlayerList(m?.team_A_players)) push(p, 'home')
   for (const p of asPlayerList(m?.team_B_players)) push(p, 'away')
   for (const p of asPlayerList(m?.lineup_A)) push(p, 'home')
   for (const p of asPlayerList(m?.lineup_B)) push(p, 'away')
-  for (const p of asPlayerList(m?.team_A?.players)) push(p, 'home')
-  for (const p of asPlayerList(m?.team_B?.players)) push(p, 'away')
-  const lu = m?.lineups
+  const teamA = m?.team_A as Record<string, unknown> | undefined
+  const teamB = m?.team_B as Record<string, unknown> | undefined
+  for (const p of asPlayerList(teamA?.players)) push(p, 'home')
+  for (const p of asPlayerList(teamB?.players)) push(p, 'away')
+  const lu = m?.lineups as Record<string, unknown> | undefined
   if (lu && typeof lu === 'object' && !Array.isArray(lu)) {
     for (const p of asPlayerList(lu.A || lu.home || lu.team_A)) push(p, 'home')
     for (const p of asPlayerList(lu.B || lu.away || lu.team_B)) push(p, 'away')
@@ -512,13 +515,13 @@ export function pickHeroMatch(fixtures: SalibandyTeamFixture[], todayIso: string
 }
 
 export async function fetchSalibandyTeamFixtures(teamId: string): Promise<SalibandyTeamFixture[]> {
-  const data = await tasoGet<{ matches?: any[] }>(
+  const data = await tasoGet<{ matches?: Record<string, unknown>[] }>(
     `getMatches?team_id=${encodeURIComponent(teamId)}`,
     `getMatches:team:${teamId}`,
   )
   if (!Array.isArray(data?.matches)) return []
 
-  return data.matches.map((m: any) => {
+  return data.matches.map((m: Record<string, unknown>) => {
       const isHome = String(m.team_A_id) === teamId
       const scoreHome = m.fs_A != null && m.fs_A !== '' ? Number(m.fs_A) : undefined
       const scoreAway = m.fs_B != null && m.fs_B !== '' ? Number(m.fs_B) : undefined
@@ -784,12 +787,12 @@ export async function fetchSalibandyGroups(competitionId: string, categoryId: st
   }))
 }
 
-function mapGroupTeam(t: any): SalibandyGroupTeam {
+function mapGroupTeam(t: Record<string, unknown>): SalibandyGroupTeam {
   return {
     teamId: str(t.team_id),
     teamName: str(t.team_name),
     clubId: t.club_id ? str(t.club_id) : undefined,
-    crest: t.crest || undefined,
+    crest: (t.crest as string) || undefined,
     rank: num(t.current_standing || t.final_group_standing),
     points: num(t.points),
     played: num(t.matches_played),
@@ -802,7 +805,7 @@ function mapGroupTeam(t: any): SalibandyGroupTeam {
   }
 }
 
-function mapGroupMatch(m: any): SalibandyGroupMatch {
+function mapGroupMatch(m: Record<string, unknown>): SalibandyGroupMatch {
   const scoreHome = m.fs_A != null && m.fs_A !== '' ? num(m.fs_A) : undefined
   const scoreAway = m.fs_B != null && m.fs_B !== '' ? num(m.fs_B) : undefined
   return {
@@ -832,8 +835,8 @@ export async function fetchSalibandyGroup(
   )
   const g = data?.group
   if (!g) return null
-  const teams = Array.isArray(g.teams) ? g.teams.map(mapGroupTeam) : []
-  const matches = Array.isArray(g.matches) ? g.matches.map(mapGroupMatch) : []
+  const teams = Array.isArray(g.teams) ? (g.teams as Record<string, unknown>[]).map(mapGroupTeam) : []
+  const matches = Array.isArray(g.matches) ? (g.matches as Record<string, unknown>[]).map(mapGroupMatch) : []
   return {
     groupId: str(g.group_id || groupId),
     groupName: str(g.group_name),
