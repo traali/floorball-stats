@@ -5,7 +5,7 @@ import './index.css'
 import { registerFloorballWebMCP } from './mcp-app'
 
 // Register WebMCP browser tools for AI agents (navigator.modelContext & document.modelContext)
-registerFloorballWebMCP()
+void registerFloorballWebMCP()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
