@@ -3,14 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Calendar, Heart, Search, Shield, User } from 'lucide-react'
 import { useFavorites } from '../hooks/useFavorites'
 import { parseFederationTeamId, readLastTeamId, writeLastTeamId } from '../utils/teamSelection'
+import { IceMark } from '../components/IceMark'
 
 const QUICK = ['Westend', 'EräViikingit', 'SB-Pro', 'U14', 'P13', 'Etelä-Suomi']
 
 const POPULAR = [
-  { id: '25301', name: 'Westend Indians Yellow', hint: 'U14 Pojat' },
-  { id: '25748', name: 'SB-Pro Valkoinen', hint: 'P13 Valkoinen' },
-  { id: '6546', name: 'ToBK Blue', hint: 'U14 Pojat' },
-  { id: '45210', name: 'EräViikingit', hint: 'P14' },
+  { q: 'Westend Indians', name: 'Westend Indians', hint: 'Hae seuroista' },
+  { q: 'SB-Pro', name: 'SB-Pro', hint: 'Hae seuroista' },
+  { q: 'EräViikingit', name: 'EräViikingit', hint: 'Hae seuroista' },
+  { q: 'ToBK', name: 'ToBK', hint: 'Hae seuroista' },
 ]
 
 export function Home() {
@@ -77,10 +78,10 @@ export function Home() {
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
-          <span>🏑</span>
+          <IceMark className="w-6 h-6 text-[#6FFFE9]" />
           Salibandytilastot
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#5BC0BE]/20 text-[#5BC0BE] border border-[#5BC0BE]/30 uppercase">
-            SSBL Live
+            SSBL
           </span>
         </h1>
         <p className="text-sm text-slate-400">
@@ -240,9 +241,9 @@ export function Home() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {POPULAR.map((t) => (
             <button
-              key={t.id}
+              key={t.q}
               type="button"
-              onClick={() => goTeam(t.id)}
+              onClick={() => goSearch(t.q)}
               className="text-left bg-[#1C2541]/70 border border-slate-800 hover:border-[#5BC0BE]/50 rounded-xl p-3 min-h-[64px]"
             >
               <div className="font-bold text-xs text-slate-200 truncate">{t.name}</div>
