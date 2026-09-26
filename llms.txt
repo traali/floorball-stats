@@ -1,6 +1,6 @@
 # Floorball Stats
 
-UI contract for other models: `docs/UI_SPEC.md` (signed off 2026-09-26). Read section 0 before changing navigation, V/T/H, or the goalkeeper and special-teams tabs.
+UI contract for other models: `docs/UI_SPEC.md` (signed off 2026-09-26). Every component file: `docs/UI_COMPONENTS.md`. Read section 0 before changing navigation, V/T/H, or the goalkeeper and special-teams tabs.
 
 Live: https://floorball-stats.pages.dev
 Data: Salibandyliitto TASO. No hardcoded match. Keep `kenttä N` in venue names.
