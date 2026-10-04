@@ -85,7 +85,7 @@ export function Home() {
           </span>
         </h1>
         <p className="text-sm text-slate-400">
-          Hae joukkue, seura, sarja tai pelaaja. Ei kovakoodattua ottelua.
+          Hae joukkueen nimellä. Ottelut ja tulokset tulevat salibandyn tulospalvelusta.
         </p>
       </div>
 
@@ -236,7 +236,7 @@ export function Home() {
       <section className="space-y-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
           <Shield className="w-3.5 h-3.5 text-[#5BC0BE]" />
-          Pikavalinnat (haku, ei kovakoodattu ottelu)
+          Seurat
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {POPULAR.map((t) => (
