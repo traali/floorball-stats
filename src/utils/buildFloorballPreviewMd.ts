@@ -93,7 +93,9 @@ export function buildFloorballPreviewMd(opts: {
   const m = opts.match
   const score =
     m.phase === 'upcoming' ? 'vs' : `${m.scoreHome}–${m.scoreAway}`
-  const periods = m.periods.map((p) => `${p.period}. erä ${p.scoreHome}–${p.scoreAway}`).join(', ')
+  const periods = m.phase === 'upcoming'
+    ? ''
+    : m.periods.map((p) => `${p.period}. erä ${p.scoreHome}–${p.scoreAway}`).join(', ')
   const leaders = opts.leaders.length
     ? opts.leaders
         .slice(0, 8)
@@ -103,6 +105,12 @@ export function buildFloorballPreviewMd(opts: {
 
   const gkH = m.goalkeepers.home
   const gkA = m.goalkeepers.away
+  const gkLines = m.phase === 'upcoming' || (gkH.saves === 0 && gkA.saves === 0 && gkH.savePercentage === '–')
+    ? ['_ei torjuntoja_']
+    : [
+        `- ${m.homeTeamName}: ${gkH.goalieName} · ${gkH.saves} torj · päästetyt ${gkH.goalsConceded} · T% ${gkH.savePercentage}`,
+        `- ${m.awayTeamName}: ${gkA.goalieName} · ${gkA.saves} torj · päästetyt ${gkA.goalsConceded} · T% ${gkA.savePercentage}`,
+      ]
 
   return [
     `# ${m.homeTeamName} vs ${m.awayTeamName}`,
@@ -119,8 +127,7 @@ export function buildFloorballPreviewMd(opts: {
     leaders,
     '',
     '## Maalivahdit',
-    `- ${m.homeTeamName}: ${gkH.goalieName} · ${gkH.saves} torj · päästetyt ${gkH.goalsConceded} · T% ${gkH.savePercentage}`,
-    `- ${m.awayTeamName}: ${gkA.goalieName} · ${gkA.saves} torj · päästetyt ${gkA.goalsConceded} · T% ${gkA.savePercentage}`,
+    ...gkLines,
     '',
     '## Kokoonpanot (kausi G+A)',
     rosterBlock(m.homeTeamName, opts.homeRoster || []),
