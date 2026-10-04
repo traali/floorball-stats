@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import type { SalibandyPlayerProfile, SalibandyTeamFixture } from '../types/salibandy'
 import { determineSeasonHalf, getSeasonYear } from '../services/salibandyApi'
+import { helsinkiDateISO } from '../utils/matchContext'
 import { previousGamesForPlayer } from '../utils/playerForm'
 import { GameBoxes } from './GameBoxes'
 
@@ -25,7 +26,7 @@ export function FloorballPlayerCard({
   fixtures: SalibandyTeamFixture[]
 }) {
   const navigate = useNavigate()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = helsinkiDateISO()
   const defaultHalf: Scope = today.slice(5, 7) >= '08' ? 'syksy' : 'kevat'
   const [half, setHalf] = useState<Scope>(defaultHalf)
   const year = today.slice(0, 4)
