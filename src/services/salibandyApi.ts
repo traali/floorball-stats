@@ -29,7 +29,7 @@ import type {
   SalibandyPlayerTeam,
   DiscoveryHit,
 } from '../types/salibandy'
-import { formatClock, isKickoffUpcoming } from '../utils/matchContext.ts'
+import { formatClock, helsinkiDateISO, isKickoffUpcoming } from '../utils/matchContext.ts'
 
 const API_BASE = 'https://salibandy-api.torneopal.net/taso/rest'
 const TASO_PROXY = 'https://taso-proxy.sakkoja.workers.dev/ssbl'
@@ -304,7 +304,7 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
     const st = String(m.status || '').toLowerCase().trim()
     const date = String(m.date || '')
     const time = String(m.time || '')
-    const today = new Date().toISOString().slice(0, 10)
+    const today = helsinkiDateISO()
     const live = st === 'live' || st.includes('live') || st === '2' || time.includes("'")
     const eventful = rawEvents.some((ev) => {
       const c = String(ev.code || '')

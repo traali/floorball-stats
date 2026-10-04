@@ -2,6 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   formatClock,
+  helsinkiDateISO,
   isKickoffUpcoming,
   headToHead,
   commonOpponents,
@@ -13,6 +14,10 @@ describe('match clock + upcoming', () => {
   it('strips seconds from TASO time', () => {
     assert.equal(formatClock('16:00:00'), '16:00')
     assert.equal(formatClock('9:05'), '09:05')
+  })
+
+  it('uses the Helsinki date after UTC midnight', () => {
+    assert.equal(helsinkiDateISO(new Date('2026-10-04T22:30:00Z')), '2026-10-05')
   })
 
   it('treats today 16:00 as upcoming at 15:30 Helsinki', () => {
