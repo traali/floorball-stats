@@ -31,6 +31,33 @@ import type {
 } from '../types/salibandy'
 import { formatClock, helsinkiDateISO, isKickoffUpcoming } from '../utils/matchContext.ts'
 
+/** 0–0 on a game that has not started is a Torneopal placeholder, not a draw. */
+export function floorballScore(
+  m: Record<string, unknown>,
+  events?: Array<{ code?: string }>,
+): { home: number; away: number } | undefined {
+  const rawA = m.fs_A
+  const rawB = m.fs_B
+  if (rawA == null || rawA === '' || rawB == null || rawB === '') return undefined
+  const home = Number(rawA)
+  const away = Number(rawB)
+  if (!Number.isFinite(home) || !Number.isFinite(away)) return undefined
+  if (home !== 0 || away !== 0) return { home, away }
+  const st = String(m.status || '').toLowerCase()
+  const time = String(m.time || '')
+  if (st === 'live' || st.includes('live') || st === '2' || time.includes("'")) return { home, away }
+  const date = String(m.date || '')
+  if (date === '' || isKickoffUpcoming(date, time) || date >= helsinkiDateISO()) return undefined
+  if (events) {
+    const eventful = events.some((ev) => {
+      const c = String(ev.code || '')
+      return c === 'maali' || c === 'syotto' || c.includes('min') || c === 'torjunta'
+    })
+    if (!eventful) return undefined
+  }
+  return { home, away }
+}
+
 const API_BASE = 'https://salibandy-api.torneopal.net/taso/rest'
 const TASO_PROXY = 'https://taso-proxy.sakkoja.workers.dev/ssbl'
 const SALIBANDY_KEY = 'zsn3anknxzcfzc23k53jqdcd4pymutsf'
@@ -279,53 +306,40 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
 
     const homeSavePct = homeSaves + homeConceded > 0
       ? `${((homeSaves / (homeSaves + homeConceded)) * 100).toFixed(1)}%`
-      : '100%'
+      : '–'
 
     const awaySavePct = awaySaves + awayConceded > 0
       ? `${((awaySaves / (awaySaves + awayConceded)) * 100).toFixed(1)}%`
-      : '100%'
+      : '–'
 
     const periods: SalibandyPeriodScore[] = []
-    const p1Home = Number(m.p1s_A || (goals.filter(g => g.period === '1' && g.team === 'home').length))
-    const p1Away = Number(m.p1s_B || (goals.filter(g => g.period === '1' && g.team === 'away').length))
-    periods.push({ period: 1, scoreHome: p1Home, scoreAway: p1Away })
-
-    const p2Home = Number(m.p2s_A || (goals.filter(g => g.period === '2' && g.team === 'home').length))
-    const p2Away = Number(m.p2s_B || (goals.filter(g => g.period === '2' && g.team === 'away').length))
-    periods.push({ period: 2, scoreHome: p2Home, scoreAway: p2Away })
-
-    const p3Home = Number(m.p3s_A || (goals.filter(g => g.period === '3' && g.team === 'home').length))
-    const p3Away = Number(m.p3s_B || (goals.filter(g => g.period === '3' && g.team === 'away').length))
-    periods.push({ period: 3, scoreHome: p3Home, scoreAway: p3Away })
+    const pushPeriod = (period: 1 | 2 | 3, rawHome: unknown, rawAway: unknown) => {
+      const blank = (v: unknown) => v == null || v === ''
+      const inPeriod = goals.filter((g) => g.period === String(period))
+      if (blank(rawHome) && blank(rawAway) && inPeriod.length === 0) return
+      const scoreHome = blank(rawHome) ? inPeriod.filter((g) => g.team === 'home').length : Number(rawHome)
+      const scoreAway = blank(rawAway) ? inPeriod.filter((g) => g.team === 'away').length : Number(rawAway)
+      if (!Number.isFinite(scoreHome) || !Number.isFinite(scoreAway)) return
+      periods.push({ period, scoreHome, scoreAway })
+    }
+    pushPeriod(1, m.p1s_A, m.p1s_B)
+    pushPeriod(2, m.p2s_A, m.p2s_B)
+    pushPeriod(3, m.p3s_A, m.p3s_B)
 
     const spectatorEvent = rawEvents.find(e => e.code === 'katsojia')
     const spectators = spectatorEvent ? Number(spectatorEvent.description || 0) : Number(m.attendance || 0)
 
     const st = String(m.status || '').toLowerCase().trim()
-    const date = String(m.date || '')
     const time = String(m.time || '')
-    const today = helsinkiDateISO()
     const live = st === 'live' || st.includes('live') || st === '2' || time.includes("'")
-    const eventful = rawEvents.some((ev) => {
-      const c = String(ev.code || '')
-      return c === 'maali' || c === 'syotto' || c.includes('min') || c === 'torjunta'
-    })
-    const a = Number(m.fs_A)
-    const b = Number(m.fs_B || 0)
-    const zeroZero = (!Number.isFinite(a) && !Number.isFinite(b)) || (a === 0 && b === 0)
-    const kickoffFuture = isKickoffUpcoming(date, time)
-    // Torneopal often marks unplayed games as status 1/Played with 0-0.
+    const scored = floorballScore(m, rawEvents)
     const phase: SalibandyMatchDetail['phase'] = live
       ? 'live'
-      : !eventful && zeroZero && (kickoffFuture || date >= today || date === '')
-        ? 'upcoming'
-        : !eventful && zeroZero && date < today
-          ? 'played'
-          : eventful || (Number.isFinite(a) && !(a === 0 && b === 0 && date >= today))
-            ? 'played'
-            : 'upcoming'
+      : scored
+        ? 'played'
+        : 'upcoming'
 
-    const hasScore = phase !== 'upcoming' && Number.isFinite(a)
+    const hasScore = phase !== 'upcoming' && scored !== undefined
 
     const lineups = extractMatchRosters(m)
 
@@ -346,8 +360,8 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
       awayTeamName: String(m.team_B_name || 'Vieras'),
       homeTeamId: m.team_A_id ? String(m.team_A_id) : undefined,
       awayTeamId: m.team_B_id ? String(m.team_B_id) : undefined,
-      scoreHome: hasScore ? Number(m.fs_A) : 0,
-      scoreAway: hasScore ? Number(m.fs_B || 0) : 0,
+      scoreHome: hasScore && scored ? scored.home : 0,
+      scoreAway: hasScore && scored ? scored.away : 0,
       isLive: phase === 'live',
       phase,
       referee1: m.referee_1_name ? String(m.referee_1_name) : undefined,
@@ -523,23 +537,23 @@ export async function fetchSalibandyTeamFixtures(teamId: string): Promise<Saliba
 
   return data.matches.map((m: Record<string, unknown>) => {
       const isHome = String(m.team_A_id) === teamId
-      const scoreHome = m.fs_A != null && m.fs_A !== '' ? Number(m.fs_A) : undefined
-      const scoreAway = m.fs_B != null && m.fs_B !== '' ? Number(m.fs_B) : undefined
-      const hasScore = scoreHome !== undefined && scoreAway !== undefined
+      const scored = floorballScore(m)
+      const scoreHome = scored?.home
+      const scoreAway = scored?.away
 
       let isWin = false
       let isDraw = false
       let isLoss = false
 
-      if (hasScore) {
+      if (scored) {
         if (isHome) {
-          isWin = scoreHome > scoreAway
-          isDraw = scoreHome === scoreAway
-          isLoss = scoreHome < scoreAway
+          isWin = scored.home > scored.away
+          isDraw = scored.home === scored.away
+          isLoss = scored.home < scored.away
         } else {
-          isWin = scoreAway > scoreHome
-          isDraw = scoreHome === scoreAway
-          isLoss = scoreAway < scoreHome
+          isWin = scored.away > scored.home
+          isDraw = scored.home === scored.away
+          isLoss = scored.away < scored.home
         }
       }
 
@@ -557,7 +571,7 @@ export async function fetchSalibandyTeamFixtures(teamId: string): Promise<Saliba
         awayTeam: String(m.team_B_name || 'Vieras'),
         homeTeamId: m.team_A_id ? String(m.team_A_id) : undefined,
         awayTeamId: m.team_B_id ? String(m.team_B_id) : undefined,
-        score: hasScore ? `${scoreHome}–${scoreAway}` : undefined,
+        score: scored ? `${scored.home}–${scored.away}` : undefined,
         scoreHome,
         scoreAway,
         isHome,
@@ -806,8 +820,7 @@ function mapGroupTeam(t: Record<string, unknown>): SalibandyGroupTeam {
 }
 
 function mapGroupMatch(m: Record<string, unknown>): SalibandyGroupMatch {
-  const scoreHome = m.fs_A != null && m.fs_A !== '' ? num(m.fs_A) : undefined
-  const scoreAway = m.fs_B != null && m.fs_B !== '' ? num(m.fs_B) : undefined
+  const scored = floorballScore(m)
   return {
     matchId: str(m.match_id),
     date: str(m.date),
@@ -816,8 +829,8 @@ function mapGroupMatch(m: Record<string, unknown>): SalibandyGroupMatch {
     awayTeam: str(m.team_B_name, 'Vieras'),
     homeTeamId: numericId(m.team_A_id),
     awayTeamId: numericId(m.team_B_id),
-    scoreHome,
-    scoreAway,
+    scoreHome: scored?.home,
+    scoreAway: scored?.away,
     status: str(m.status),
     venueName: m.venue_name ? str(m.venue_name) : undefined,
   }

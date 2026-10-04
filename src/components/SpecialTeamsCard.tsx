@@ -25,16 +25,27 @@ export const SpecialTeamsCard: React.FC<SpecialTeamsCardProps> = ({
   const homeAvGoalsAllowed = goals.filter((g) => g.team === 'away' && g.isPowerplayGoal).length
   const awayAvGoalsAllowed = goals.filter((g) => g.team === 'home' && g.isPowerplayGoal).length
 
-  const homeYvPct = awayPenalties > 0 ? `${((homeYvGoals / awayPenalties) * 100).toFixed(0)}%` : '0%'
-  const awayYvPct = homePenalties > 0 ? `${((awayYvGoals / homePenalties) * 100).toFixed(0)}%` : '50%'
+  const dash = '–'
+  const homeYvPct = awayPenalties > 0 ? `${((homeYvGoals / awayPenalties) * 100).toFixed(0)}%` : dash
+  const awayYvPct = homePenalties > 0 ? `${((awayYvGoals / homePenalties) * 100).toFixed(0)}%` : dash
 
-  const homeAvPct = homePenalties > 0 ? `${(((homePenalties - homeAvGoalsAllowed) / homePenalties) * 100).toFixed(0)}%` : '100%'
-  const awayAvPct = awayPenalties > 0 ? `${(((awayPenalties - awayAvGoalsAllowed) / awayPenalties) * 100).toFixed(0)}%` : '100%'
+  const homeAvPct = homePenalties > 0 ? `${(((homePenalties - homeAvGoalsAllowed) / homePenalties) * 100).toFixed(0)}%` : dash
+  const awayAvPct = awayPenalties > 0 ? `${(((awayPenalties - awayAvGoalsAllowed) / awayPenalties) * 100).toFixed(0)}%` : dash
 
-  // 2. Goal Momentum by Period
-  const period1Diff = goals.filter(g => g.period === '1' && g.team === 'away').length - goals.filter(g => g.period === '1' && g.team === 'home').length
-  const period2Diff = goals.filter(g => g.period === '2' && g.team === 'away').length - goals.filter(g => g.period === '2' && g.team === 'home').length
-  const period3Diff = goals.filter(g => g.period === '3' && g.team === 'away').length - goals.filter(g => g.period === '3' && g.team === 'home').length
+  const periodGoals = (period: string) => goals.filter((g) => g.period === period).length
+  const periodDiff = (period: string) =>
+    goals.filter((g) => g.period === period && g.team === 'away').length -
+    goals.filter((g) => g.period === period && g.team === 'home').length
+  const momentum = (period: string) => {
+    const count = periodGoals(period)
+    if (count === 0) return { label: dash, width: 0 }
+    const diff = periodDiff(period)
+    const label = diff > 0 ? `+${diff} maalia` : diff < 0 ? `${diff} maalia` : '0'
+    return { label, width: Math.min(100, Math.max(12, Math.abs(diff) * 25)) }
+  }
+  const p1 = momentum('1')
+  const p2 = momentum('2')
+  const p3 = momentum('3')
 
   return (
     <div className="bg-[#1C2541] rounded-2xl p-5 border border-slate-700/60 shadow-xl space-y-6">
@@ -94,23 +105,23 @@ export const SpecialTeamsCard: React.FC<SpecialTeamsCardProps> = ({
         <div className="grid grid-cols-3 gap-3 text-center text-xs">
           <div className="p-2.5 bg-[#1C2541] rounded-lg border border-slate-700">
             <span className="text-[10px] text-slate-400 block">1. Erä Momentum</span>
-            <span className="font-bold text-emerald-400 text-sm">+{period1Diff} maalia</span>
+            <span className="font-bold text-emerald-400 text-sm">{p1.label}</span>
             <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-emerald-400 h-full rounded-full" style={{ width: '75%' }}></div>
+              <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${p1.width}%` }}></div>
             </div>
           </div>
           <div className="p-2.5 bg-[#1C2541] rounded-lg border border-slate-700">
             <span className="text-[10px] text-slate-400 block">2. Erä Momentum</span>
-            <span className="font-bold text-emerald-400 text-sm">+{period2Diff} maalia</span>
+            <span className="font-bold text-emerald-400 text-sm">{p2.label}</span>
             <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-emerald-400 h-full rounded-full" style={{ width: '80%' }}></div>
+              <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${p2.width}%` }}></div>
             </div>
           </div>
           <div className="p-2.5 bg-[#1C2541] rounded-lg border border-slate-700">
             <span className="text-[10px] text-slate-400 block">3. Erä Momentum</span>
-            <span className="font-bold text-emerald-400 text-sm">+{period3Diff} maalia</span>
+            <span className="font-bold text-emerald-400 text-sm">{p3.label}</span>
             <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-emerald-400 h-full rounded-full" style={{ width: '85%' }}></div>
+              <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${p3.width}%` }}></div>
             </div>
           </div>
         </div>
