@@ -43,7 +43,8 @@ export function previousGamesForPlayer(opts: {
     if (opts.asOfDate && m.date === opts.asOfDate && m.matchId === opts.excludeMatchId) continue
     if (!inHalf(m.date, m.categoryName, half, opts.year)) continue
     if (m.scoreHome == null || m.scoreAway == null) continue
-    const isHome = m.teamId ? m.teamId === m.homeTeamId : true
+    if (!m.teamId || (m.teamId !== m.homeTeamId && m.teamId !== m.awayTeamId)) continue
+    const isHome = m.teamId === m.homeTeamId
     const my = isHome ? m.scoreHome : m.scoreAway
     const opp = isHome ? m.scoreAway : m.scoreHome
     byId.set(m.matchId, {

@@ -60,7 +60,7 @@ export function floorballScore(
 
 const API_BASE = 'https://salibandy-api.torneopal.net/taso/rest'
 const TASO_PROXY = 'https://taso-proxy.sakkoja.workers.dev/ssbl'
-const SALIBANDY_KEY = 'zsn3anknxzcfzc23k53jqdcd4pymutsf'
+const SALIBANDY_KEY = import.meta.env.VITE_SALIBANDY_ACCEPT || ''
 
 const reqHeaders = {
   Accept: `json/${SALIBANDY_KEY}`,
