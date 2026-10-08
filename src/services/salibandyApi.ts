@@ -59,12 +59,14 @@ export function floorballScore(
 }
 
 const API_BASE = 'https://salibandy-api.torneopal.net/taso/rest'
-const TASO_PROXY = 'https://taso-proxy.sakkoja.workers.dev/ssbl'
+// Public key the official tulospalvelu.salibandy.fi front end uses. It rides in
+// Accept (a CORS-safelisted header, so no preflight). Torneopal also wants a
+// Referer, which the browser sends on its own. The shared taso-proxy Worker got
+// upstream 403 on every uncached salibandy call, so it is no longer tried.
 const SALIBANDY_KEY = 'zsn3anknxzcfzc23k53jqdcd4pymutsf'
 
 const reqHeaders = {
   Accept: `json/${SALIBANDY_KEY}`,
-  Referer: 'https://tulospalvelu.salibandy.fi/',
 }
 
 type CacheEntry = { at: number; data: unknown; ttl: number }
@@ -95,6 +97,7 @@ function ttlForPayload(path: string, data: unknown, fallback: number): number {
     if (Array.isArray(matches) && matches.some((m) => matchPhase(m) === 'live')) return 0
     return UPCOMING_TTL_MS
   }
+  if (path.startsWith('getPlayers')) return fallback
   if (path.startsWith('getTeam') || path.startsWith('getPlayer') || path.startsWith('getGroup')) return ROSTER_TTL_MS
   return fallback
 }
@@ -129,38 +132,70 @@ function cacheSet(key: string, data: unknown, ttl: number) {
   }
 }
 
-async function tasoGet<T>(path: string, cacheKey?: string, ttl?: number): Promise<T | null> {
-  const key = cacheKey || path
-  const cached = cacheGet<T>(key)
-  if (cached) return cached
+/** Pull the JSON body out of a Torneopal reply (it sometimes prefixes PHP dumps). */
+export function parseTasoBody<T>(text: string): T | null {
+  const start = text.indexOf('{"')
+  if (start < 0) return null
+  try {
+    const data = JSON.parse(text.slice(start)) as T & { call?: { status?: string } }
+    const status = String(data?.call?.status || '').toLowerCase()
+    if (status && status !== 'ok') return null
+    return data
+  } catch {
+    return null
+  }
+}
 
+/** True when Torneopal answered with JSON saying `status: error` (e.g. not found). */
+export function isTasoError(text: string): boolean {
+  const start = text.indexOf('{"')
+  if (start < 0) return false
+  try {
+    const data = JSON.parse(text.slice(start)) as { call?: { status?: string } }
+    return String(data?.call?.status || '').toLowerCase() === 'error'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Direct to Torneopal, then the same URL with a cache-buster: the Torneopal edge
+ * caches a 403 for 60 s per URL, so the busted URL gets past a poisoned entry.
+ */
+async function tasoFetch<T>(path: string): Promise<T | null> {
   const sep = path.includes('?') ? '&' : '?'
-  const urls = [
-    `${TASO_PROXY}/${path}`,
-    `${API_BASE}/${path}`,
-    `${API_BASE}/${path}${sep}_cb=${Date.now()}`,
-  ]
-
+  const urls = [`${API_BASE}/${path}`, `${API_BASE}/${path}${sep}_cb=${Date.now()}`]
   for (const url of urls) {
     try {
-      const viaProxy = url.includes('taso-proxy')
-      const res = await fetch(url, {
-        headers: viaProxy ? { Accept: 'application/json' } : reqHeaders,
-      })
+      const res = await fetch(url, { headers: reqHeaders })
       if (!res.ok) continue
       const text = await res.text()
-      const start = text.indexOf('{')
-      if (start < 0) continue
-      const data = JSON.parse(text.slice(start)) as T & { call?: { status?: string } }
-      const status = String(data?.call?.status || '').toLowerCase()
-      if (status && status !== 'ok') continue
-      cacheSet(key, data, ttlForPayload(path, data, ttl ?? CACHE_TTL_MS))
-      return data
+      const data = parseTasoBody<T>(text)
+      if (data) return data
+      // A clean JSON error («Player not found») is an answer; only a 403 page
+      // or a non-JSON body is worth the cache-busted retry.
+      if (isTasoError(text)) return null
     } catch (err) {
       console.warn('[SALIBANDY_API]', url, err)
     }
   }
   return null
+}
+
+async function tasoGet<T>(path: string, cacheKey?: string, ttl?: number): Promise<T | null> {
+  const key = cacheKey || path
+  const cached = cacheGet<T>(key)
+  if (cached) return cached
+  const data = await tasoFetch<T>(path)
+  if (data) cacheSet(key, data, ttlForPayload(path, data, ttl ?? CACHE_TTL_MS))
+  return data
+}
+
+/** Test hook: forget the in-memory caches. */
+export function resetSalibandyCaches() {
+  memCache.clear()
+  teamIndexMem = null
+  teamIndexInflight = null
 }
 
 function str(v: unknown, fallback = ''): string {
@@ -192,6 +227,7 @@ export function parseSalibandyQuery(raw: string):
   | { kind: 'team'; id: string }
   | { kind: 'player'; id: string }
   | { kind: 'club'; id: string }
+  | { kind: 'id'; id: string }
   | { kind: 'text'; q: string } {
   const val = raw.trim()
   if (!val) return { kind: 'text', q: '' }
@@ -208,7 +244,7 @@ export function parseSalibandyQuery(raw: string):
   const clubUrl = val.match(/(?:seura|club(?:_id)?)[=/](\d+)/i)
   if (clubUrl) return { kind: 'club', id: clubUrl[1] }
 
-  if (/^\d{4,8}$/.test(val)) return { kind: 'match', id: val }
+  if (/^\d{1,9}$/.test(val)) return { kind: 'id', id: val }
 
   return { kind: 'text', q: val }
 }
@@ -994,141 +1030,385 @@ export async function fetchSalibandyPlayer(playerId: string): Promise<SalibandyP
   }
 }
 
-export async function searchDiscovery(query: string): Promise<DiscoveryHit[]> {
-  const parsed = parseSalibandyQuery(query)
-  const hits: DiscoveryHit[] = []
+// ---------------------------------------------------------------------------
+// Search. Every hit below comes from a Torneopal reply; nothing is invented.
+// ---------------------------------------------------------------------------
 
-  if (parsed.kind === 'match') {
-    hits.push({ kind: 'match', id: parsed.id, title: `Ottelu #${parsed.id}`, subtitle: 'Avaa ottelu' })
-    hits.push({ kind: 'team', id: parsed.id, title: `Joukkue #${parsed.id}`, subtitle: 'Kokeile joukkueena' })
-    hits.push({ kind: 'player', id: parsed.id, title: `Pelaaja #${parsed.id}`, subtitle: 'Kokeile pelaajana' })
-    return hits
+export interface TeamIndexEntry {
+  teamId: string
+  clubId?: string
+  teamName: string
+  categoryName: string
+  competitionId: string
+  crest?: string
+}
+
+export interface ClubPlayer {
+  playerId: string
+  firstName: string
+  lastName: string
+  fullName: string
+  birthYear?: string
+  clubId: string
+  seasonMatchCount: number
+}
+
+export interface SearchOptions {
+  /** Clubs of saved favourites: their players are searched by name too. */
+  favoriteClubIds?: string[]
+}
+
+export interface SearchResult {
+  hits: DiscoveryHit[]
+  /** Clubs whose player lists were searched for this query. */
+  playerClubs: { clubId: string; name: string }[]
+}
+
+export const TEAM_INDEX_KEY = 'floorball.teamIndex.v1'
+const TEAM_INDEX_TTL_MS = 12 * 60 * 60 * 1000
+const TEAM_INDEX_RETRY_MS = 5 * 60 * 1000
+const CLUB_PLAYERS_TTL_MS = 10 * 60 * 1000
+const MAX_PLAYER_CLUBS = 4
+const MAX_FAVORITE_CLUBS = 6
+
+type SlimTeam = [string, string, string, string, string, string]
+let teamIndexMem: { at: number; teams: TeamIndexEntry[] } | null = null
+let teamIndexInflight: Promise<TeamIndexEntry[]> | null = null
+
+function localStore(): Storage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage
+  } catch {
+    return null
   }
-  if (parsed.kind === 'team') {
-    hits.push({ kind: 'team', id: parsed.id, title: `Joukkue #${parsed.id}`, subtitle: 'Avaa joukkue' })
-    return hits
+}
+
+function readTeamIndex(): { at: number; teams: TeamIndexEntry[] } | null {
+  if (teamIndexMem) return teamIndexMem
+  const ls = localStore()
+  if (!ls) return null
+  try {
+    const raw = ls.getItem(TEAM_INDEX_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { at?: unknown; teams?: unknown }
+    if (typeof parsed?.at !== 'number' || !Array.isArray(parsed.teams)) return null
+    const teams = (parsed.teams as SlimTeam[])
+      .filter((r) => Array.isArray(r) && numericId(r[0]) && str(r[2]))
+      .map((r) => ({
+        teamId: str(r[0]),
+        clubId: numericId(r[1]),
+        teamName: str(r[2]),
+        categoryName: str(r[3]),
+        competitionId: str(r[4]),
+        crest: str(r[5]) || undefined,
+      }))
+    teamIndexMem = { at: parsed.at, teams }
+    return teamIndexMem
+  } catch {
+    return null
   }
-  if (parsed.kind === 'player') {
-    hits.push({ kind: 'player', id: parsed.id, title: `Pelaaja #${parsed.id}`, subtitle: 'Avaa pelaaja' })
-    return hits
+}
+
+function writeTeamIndex(teams: TeamIndexEntry[]) {
+  teamIndexMem = { at: Date.now(), teams }
+  const ls = localStore()
+  if (!ls) return
+  const slim: SlimTeam[] = teams.map((t) => [t.teamId, t.clubId || '', t.teamName, t.categoryName, t.competitionId, t.crest || ''])
+  try {
+    ls.setItem(TEAM_INDEX_KEY, JSON.stringify({ at: teamIndexMem.at, teams: slim }))
+  } catch {
+    /* quota: the in-memory copy still serves this visit */
   }
-  if (parsed.kind === 'club') {
-    hits.push({ kind: 'club', id: parsed.id, title: `Seura #${parsed.id}`, subtitle: 'Avaa seura' })
-    return hits
+}
+
+/**
+ * Every team registered in the current competitions (getCompetitions?current=1,
+ * then getTeams per competition). Kept ~12 h in localStorage.
+ */
+export async function fetchTeamIndex(): Promise<TeamIndexEntry[]> {
+  const cached = readTeamIndex()
+  if (cached && cached.teams.length > 0 && Date.now() - cached.at < TEAM_INDEX_TTL_MS) return cached.teams
+  if (teamIndexInflight) return teamIndexInflight
+  teamIndexInflight = (async () => {
+    const comps = await fetchSalibandyCompetitions()
+    const lists = await Promise.all(
+      comps.map((c) => tasoFetch<{ teams?: any[] }>(`getTeams?competition_id=${encodeURIComponent(c.competitionId)}`)),
+    )
+    const byId = new Map<string, TeamIndexEntry>()
+    let complete = comps.length > 0
+    for (const data of lists) {
+      if (!data || !Array.isArray(data.teams)) {
+        complete = false
+        continue
+      }
+      for (const t of data.teams) {
+        const teamId = numericId(t?.team_id)
+        const teamName = str(t?.team_name)
+        if (!teamId || !teamName) continue
+        const categoryName = str(t.category_name)
+        const existing = byId.get(teamId)
+        if (existing) {
+          if (categoryName && !existing.categoryName.includes(categoryName) && existing.categoryName.split(' / ').length < 3) {
+            existing.categoryName = existing.categoryName ? `${existing.categoryName} / ${categoryName}` : categoryName
+          }
+          continue
+        }
+        byId.set(teamId, {
+          teamId,
+          clubId: numericId(t.club_id),
+          teamName,
+          categoryName,
+          competitionId: str(t.competition_id),
+          crest: str(t.crest) || undefined,
+        })
+      }
+    }
+    const teams = [...byId.values()]
+    if (teams.length > 0 && complete) writeTeamIndex(teams)
+    else if (teams.length > 0) teamIndexMem = { at: Date.now() - TEAM_INDEX_TTL_MS + TEAM_INDEX_RETRY_MS, teams }
+    return teams.length > 0 ? teams : cached?.teams ?? []
+  })().finally(() => {
+    teamIndexInflight = null
+  })
+  return teamIndexInflight
+}
+
+/** Players registered to a club (getPlayers?club_id). */
+export async function fetchClubPlayers(clubId: string): Promise<ClubPlayer[]> {
+  const id = numericId(clubId)
+  if (!id) return []
+  const data = await tasoGet<{ players?: any[] }>(`getPlayers?club_id=${id}`, `getPlayers:club:${id}`, CLUB_PLAYERS_TTL_MS)
+  const list = Array.isArray(data?.players) ? data!.players : []
+  return list.flatMap((p: any) => {
+    const playerId = numericId(p?.player_id)
+    const firstName = str(p?.first_name)
+    const lastName = str(p?.last_name)
+    const fullName = `${firstName} ${lastName}`.trim()
+    if (!playerId || !fullName) return []
+    return [
+      {
+        playerId,
+        firstName,
+        lastName,
+        fullName,
+        birthYear: str(p.birth_year || p.birthyear) || undefined,
+        clubId: numericId(p.club_id) || id,
+        seasonMatchCount: num(p.season_match_count),
+      },
+    ]
+  })
+}
+
+async function lookupTeamHit(id: string): Promise<DiscoveryHit | null> {
+  const data = await tasoGet<{ team?: any }>(`getTeam?team_id=${encodeURIComponent(id)}`, `getTeam:${id}`)
+  const t = data?.team
+  const title = str(t?.team_name)
+  if (!t || !title) return null
+  return {
+    kind: 'team',
+    id: numericId(t.team_id) || id,
+    title,
+    subtitle: [str(t.club_abbrevation) || str(t.club_name), str(t.primary_category?.category_name)].filter(Boolean).join(' · ') || 'Joukkue',
+    clubId: numericId(t.club_id),
+    crest: str(t.crest) || undefined,
   }
+}
+
+async function lookupPlayerHit(id: string): Promise<DiscoveryHit | null> {
+  const data = await tasoGet<{ player?: any }>(`getPlayer?player_id=${encodeURIComponent(id)}`, `getPlayer:${id}`, 5 * 60 * 1000)
+  const p = data?.player
+  const title = `${str(p?.first_name)} ${str(p?.last_name)}`.trim()
+  if (!p || !title) return null
+  return {
+    kind: 'player',
+    id: numericId(p.player_id) || id,
+    title,
+    subtitle: [str(p.club_abbrevation) || str(p.club_name), p.birthyear ? `s. ${str(p.birthyear)}` : ''].filter(Boolean).join(' · ') || 'Pelaaja',
+    clubId: numericId(p.club_id),
+  }
+}
+
+async function lookupClubHit(id: string): Promise<DiscoveryHit | null> {
+  const data = await tasoGet<{ club?: any }>(`getClub?club_id=${encodeURIComponent(id)}`, `getClub:${id}`)
+  const c = data?.club
+  const name = str(c?.name)
+  if (!c || !name) return null
+  return {
+    kind: 'club',
+    id: numericId(c.club_id) || id,
+    title: str(c.abbrevation || c.abbreviation) || name,
+    subtitle: [str(c.city_name), 'Seura'].filter(Boolean).join(' · '),
+    clubId: numericId(c.club_id) || id,
+    crest: str(c.crest) || undefined,
+  }
+}
+
+async function lookupMatchHit(id: string): Promise<DiscoveryHit | null> {
+  const data = await tasoGet<{ match?: any }>(`getMatch?match_id=${encodeURIComponent(id)}`, `getMatch:${id}`, 60_000)
+  const m = data?.match
+  const home = str(m?.team_A_name)
+  const away = str(m?.team_B_name)
+  if (!m || (!home && !away)) return null
+  return {
+    kind: 'match',
+    id: numericId(m.match_id) || id,
+    title: `${home || '?'} – ${away || '?'}`,
+    subtitle: [str(m.date), str(m.time).slice(0, 5), str(m.category_name)].filter(Boolean).join(' · ') || 'Ottelu',
+  }
+}
+
+async function lookupById(parsed: { kind: 'match' | 'team' | 'player' | 'club' | 'id'; id: string }): Promise<DiscoveryHit[]> {
+  const lookups: Promise<DiscoveryHit | null>[] = []
+  if (parsed.kind === 'club' || parsed.kind === 'id') lookups.push(lookupClubHit(parsed.id))
+  if (parsed.kind === 'team' || parsed.kind === 'id') lookups.push(lookupTeamHit(parsed.id))
+  if (parsed.kind === 'player' || parsed.kind === 'id') lookups.push(lookupPlayerHit(parsed.id))
+  if (parsed.kind === 'match' || parsed.kind === 'id') lookups.push(lookupMatchHit(parsed.id))
+  const settled = await Promise.all(lookups.map((p) => p.catch(() => null)))
+  return settled.filter((h): h is DiscoveryHit => Boolean(h))
+}
+
+function textRank(name: string, q: string, tokens: string[]): number {
+  if (name === q) return 0
+  if (name.startsWith(q)) return 1
+  if (tokens.every((t) => name.includes(t))) return 2
+  return 3
+}
+
+export async function searchSalibandy(query: string, opts: SearchOptions = {}): Promise<SearchResult> {
+  const parsed = parseSalibandyQuery(query)
+  if (parsed.kind !== 'text') return { hits: await lookupById(parsed), playerClubs: [] }
 
   const q = normalizeSearch(parsed.q)
-  if (q.length < 2) return []
-
-  const clubs = await fetchSalibandyClubs()
+  if (q.length < 2) return { hits: [], playerClubs: [] }
   const tokens = q.split(' ').filter(Boolean)
-  const clubHits = clubs.filter((c) => {
-    const hay = normalizeSearch(`${c.name} ${c.abbreviation} ${c.cityName}`)
-    return tokens.every((t) => hay.includes(t)) || hay.includes(q)
-  })
 
-  const topClubs = clubHits.slice(0, 8)
-  for (const c of topClubs) {
+  const [clubs, teams] = await Promise.all([
+    fetchSalibandyClubs().catch(() => [] as SalibandyClubSummary[]),
+    fetchTeamIndex().catch(() => [] as TeamIndexEntry[]),
+  ])
+  const clubById = new Map(clubs.map((c) => [c.clubId, c]))
+  const hits: DiscoveryHit[] = []
+
+  // Clubs: every token in name / abbreviation / city.
+  const clubHits = clubs
+    .map((c) => ({ c, hay: normalizeSearch(`${c.name} ${c.abbreviation} ${c.cityName}`), name: normalizeSearch(c.abbreviation || c.name) }))
+    .filter(({ hay }) => tokens.every((t) => hay.includes(t)))
+    .sort((a, b) => textRank(a.name, q, tokens) - textRank(b.name, q, tokens) || a.name.localeCompare(b.name))
+    .slice(0, 8)
+  for (const { c } of clubHits) {
     hits.push({
       kind: 'club',
       id: c.clubId,
       title: c.abbreviation || c.name,
       subtitle: [c.cityName, 'Seura'].filter(Boolean).join(' · '),
+      clubId: c.clubId,
       crest: c.crest,
     })
   }
 
-  const clubsToExpand = (topClubs.length > 0 ? topClubs : clubs.filter((c) => {
+  // Teams: every token in team name / category / club.
+  const teamHits = teams
+    .map((t) => {
+      const club = t.clubId ? clubById.get(t.clubId) : undefined
+      return {
+        t,
+        club,
+        name: normalizeSearch(t.teamName),
+        hay: normalizeSearch(`${t.teamName} ${t.categoryName} ${club?.name ?? ''} ${club?.abbreviation ?? ''}`),
+      }
+    })
+    .filter(({ hay }) => tokens.every((tok) => hay.includes(tok)))
+    .sort((a, b) => textRank(a.name, q, tokens) - textRank(b.name, q, tokens) || a.name.length - b.name.length || a.name.localeCompare(b.name))
+    .slice(0, 20)
+  for (const { t, club } of teamHits) {
+    hits.push({
+      kind: 'team',
+      id: t.teamId,
+      title: t.teamName,
+      subtitle: [t.categoryName, club?.abbreviation || club?.name].filter(Boolean).join(' · '),
+      clubId: t.clubId,
+      crest: t.crest,
+    })
+  }
+
+  // Players: there is no name search in TASO. Search the player lists of clubs
+  // named in the query (the rest of the query is the player's name) and of the
+  // clubs behind saved favourites.
+  const candidates: { club: SalibandyClubSummary; residual: string[]; score: number }[] = []
+  for (const c of clubs) {
     const hay = normalizeSearch(`${c.name} ${c.abbreviation}`)
-    return tokens.some((t) => t.length >= 3 && hay.includes(t))
-  })).slice(0, 5)
-
-  const clubDetails = await Promise.all(clubsToExpand.map((c) => fetchSalibandyClub(c.clubId)))
-  const seenTeams = new Set<string>()
-  for (const detail of clubDetails) {
-    if (!detail) continue
-    const active = detail.teams.filter((t) => t.status === 'active')
-    const pool = active.length ? active : detail.teams
-    for (const t of pool) {
-      const hay = normalizeSearch(`${t.teamName} ${t.categoryName} ${detail.name}`)
-      const matchesAll = tokens.every((tok) => hay.includes(tok))
-      if (!matchesAll && topClubs.length === 0) continue
-      if (!matchesAll && tokens.length > 1) {
-        const last = tokens[tokens.length - 1]
-        if (!normalizeSearch(t.teamName).includes(last) && !hay.includes(last)) continue
-      }
-      if (seenTeams.has(t.teamId)) continue
-      seenTeams.add(t.teamId)
+    const words = hay.split(' ')
+    const matched = tokens.filter((t) => (t.length >= 3 && hay.includes(t)) || words.includes(t))
+    if (matched.length === 0) continue
+    const residual = tokens.filter((t) => !matched.includes(t))
+    if (residual.length === 0) continue
+    candidates.push({ club: c, residual, score: matched.length * 10 + (words.some((w) => matched.includes(w)) ? 1 : 0) })
+  }
+  candidates.sort((a, b) => b.score - a.score || a.club.name.localeCompare(b.club.name))
+  const playerClubs = candidates.slice(0, MAX_PLAYER_CLUBS)
+  const seenClubs = new Set(playerClubs.map((c) => c.club.clubId))
+  for (const favId of (opts.favoriteClubIds || []).slice(0, MAX_FAVORITE_CLUBS)) {
+    const club = clubById.get(favId)
+    if (!club || seenClubs.has(club.clubId)) continue
+    seenClubs.add(club.clubId)
+    playerClubs.push({ club, residual: tokens, score: 0 })
+  }
+  const playerLists = await Promise.all(playerClubs.map((c) => fetchClubPlayers(c.club.clubId).catch(() => [] as ClubPlayer[])))
+  const playerHits: { p: ClubPlayer; club: SalibandyClubSummary }[] = []
+  const seenPlayers = new Set<string>()
+  playerLists.forEach((list, i) => {
+    const { club, residual } = playerClubs[i]
+    for (const p of list) {
+      const hay = normalizeSearch(p.fullName)
+      if (!residual.every((t) => hay.includes(t))) continue
+      if (seenPlayers.has(p.playerId)) continue
+      seenPlayers.add(p.playerId)
+      playerHits.push({ p, club })
+    }
+  })
+  playerHits
+    .sort((a, b) => b.p.seasonMatchCount - a.p.seasonMatchCount || a.p.fullName.localeCompare(b.p.fullName))
+    .slice(0, 25)
+    .forEach(({ p, club }) => {
       hits.push({
-        kind: 'team',
-        id: t.teamId,
-        title: t.teamName,
-        subtitle: [t.categoryName, t.season || detail.name].filter(Boolean).join(' · '),
+        kind: 'player',
+        id: p.playerId,
+        title: p.fullName,
+        subtitle: [club.abbreviation || club.name, p.birthYear ? `s. ${p.birthYear}` : ''].filter(Boolean).join(' · '),
+        clubId: club.clubId,
       })
-      if (hits.filter((h) => h.kind === 'team').length >= 12) break
-    }
-    if (hits.filter((h) => h.kind === 'team').length >= 12) break
-  }
+    })
 
-  const comps = await fetchSalibandyCompetitions().catch(() => [])
-  const looksLikePerson = tokens.length >= 2 && tokens.every((t) => /^[a-zåäö]{2,}$/i.test(t))
-  const clubOrTeamHits = hits.filter((h) => h.kind === 'club' || h.kind === 'team').length
-  if (!looksLikePerson) {
-    for (const c of comps) {
-      const hay = normalizeSearch(`${c.competitionName} ${c.organiser || ''} ${c.locationName || ''}`)
-      if (tokens.every((t) => hay.includes(t)) || hay.includes(q)) {
-        hits.push({
-          kind: 'competition',
-          id: c.competitionId,
-          title: c.competitionName,
-          subtitle: c.seasonId,
-        })
-      }
-    }
-
-    if (clubOrTeamHits < 6) {
-      const catSources = comps
-        .filter((c) => c.competitionId.startsWith('sb2026') || (c.seasonId || '').includes('2026'))
-        .slice(0, 4)
-      const catLists = await Promise.all(
-        catSources.map((c) => fetchSalibandyCategories(c.competitionId).catch(() => [])),
-      )
-      for (const list of catLists) {
-        for (const cat of list) {
-          if (!normalizeSearch(cat.categoryName).includes(q) && !tokens.some((t) => normalizeSearch(cat.categoryName).includes(t))) continue
-          hits.push({
-            kind: 'category',
-            id: `${cat.competitionId}::${cat.categoryId}`,
-            title: cat.categoryName,
-            subtitle: cat.competitionName,
-          })
-        }
-      }
+  // Competitions and categories from the live competition list.
+  const comps = await fetchSalibandyCompetitions().catch(() => [] as SalibandyCompetition[])
+  for (const c of comps) {
+    const hay = normalizeSearch(`${c.competitionName} ${c.organiser || ''} ${c.locationName || ''}`)
+    if (tokens.every((t) => hay.includes(t))) {
+      hits.push({ kind: 'competition', id: c.competitionId, title: c.competitionName, subtitle: c.seasonId })
     }
   }
-
-  if (looksLikePerson || clubOrTeamHits < 6) {
-    const playerTeamIds = [...seenTeams].slice(0, 4)
-    const profiles = await Promise.all(
-      [...new Set(playerTeamIds)].slice(0, 8).map((id) => fetchSalibandyTeamProfile(id).catch(() => null)),
-    )
-    const seenPlayers = new Set<string>()
-    for (const team of profiles) {
-      if (!team) continue
-      for (const p of team.players) {
-        const hay = normalizeSearch(`${p.fullName} ${p.lastName} ${p.firstName}`)
-        if (!hay.includes(q) && !tokens.some((t) => hay.includes(t))) continue
-        if (seenPlayers.has(p.playerId)) continue
-        seenPlayers.add(p.playerId)
+  if (teamHits.length < 6 && playerHits.length === 0) {
+    const catLists = await Promise.all(comps.slice(0, 4).map((c) => fetchSalibandyCategories(c.competitionId).catch(() => [])))
+    for (const list of catLists) {
+      for (const cat of list) {
+        const name = normalizeSearch(cat.categoryName)
+        if (!tokens.every((t) => name.includes(t))) continue
         hits.push({
-          kind: 'player',
-          id: p.playerId,
-          title: p.fullName,
-          subtitle: team.teamName,
+          kind: 'category',
+          id: `${cat.competitionId}::${cat.categoryId}`,
+          title: cat.categoryName,
+          subtitle: cat.competitionName,
         })
       }
     }
   }
 
-  return hits.slice(0, 30)
+  return {
+    hits,
+    playerClubs: playerClubs.map(({ club }) => ({ clubId: club.clubId, name: club.abbreviation || club.name })),
+  }
+}
+
+export async function searchDiscovery(query: string, opts?: SearchOptions): Promise<DiscoveryHit[]> {
+  return (await searchSalibandy(query, opts)).hits
 }

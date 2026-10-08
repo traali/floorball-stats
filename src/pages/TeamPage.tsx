@@ -147,6 +147,7 @@ export function TeamPage() {
               id: teamId,
               name: teamName,
               subtitle: [profile?.clubName, categoryName].filter(Boolean).join(' · '),
+              clubId: profile?.clubId,
             })
           }
           className={`p-2 rounded-full border shrink-0 ${fav ? 'border-rose-400 text-rose-400' : 'border-slate-700 text-slate-400'}`}

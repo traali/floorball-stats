@@ -1,0 +1,14 @@
+{
+  "name": "Salibandytilastot",
+  "short_name": "Salibandy",
+  "description": "Suomen salibandyn joukkueet, pelaajat ja ottelut salibandyn tulospalvelusta. Suosikit tallentuvat puhelimeen.",
+  "lang": "fi",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0B132B",
+  "theme_color": "#0B132B",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

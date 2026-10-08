@@ -54,7 +54,7 @@ export function PlayerPage() {
         </div>
         <button
           type="button"
-          onClick={() => toggle({ kind: 'player', id: player.playerId, name: player.fullName, subtitle: player.teams[0]?.teamName })}
+          onClick={() => toggle({ kind: 'player', id: player.playerId, name: player.fullName, subtitle: player.teams[0]?.teamName, clubId: player.clubId })}
           className={`p-2 rounded-full border ${fav ? 'border-rose-400 text-rose-400' : 'border-slate-700 text-slate-400'}`}
         >
           <Heart className={`w-4 h-4 ${fav ? 'fill-current' : ''}`} />

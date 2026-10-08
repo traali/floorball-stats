@@ -141,7 +141,7 @@ const TOOLS: ModelContextTool[] = [
     name: 'search_floorball',
     title: 'Search SSBL',
     description:
-      'Search Finnish floorball on Salibandy.fi / SSBL. Pass a club or team name (Westend, EräViikingit, SB-Pro), an age group (U14, P13), a player, or a tulospalvelu.salibandy.fi URL.',
+      'Search Finnish floorball on Salibandy.fi / SSBL. Pass a club or team name, an age group, a club name plus a player name, a numeric TASO id, or a tulospalvelu.salibandy.fi URL. Only hits the TASO API returned are listed.',
     inputSchema: {
       type: 'object',
       properties: { query: { type: 'string', description: 'Name, age group, or Salibandy.fi URL' } },
