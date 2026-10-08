@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import type { SalibandyMatchDetail, SalibandyTeamFixture } from '../types/salibandy'
 import { MapPin, Calendar, Clock, Trophy } from 'lucide-react'
 import { formatClock, isKickoffUpcoming } from '../utils/matchContext'
+import { decidedTitle, finalScoreLabel } from '../utils/matchResult'
 
 export function PeriodScoreCard({
   match,
@@ -22,7 +23,19 @@ export function PeriodScoreCard({
     ? { label: 'Ennakko', className: 'text-amber-300 bg-amber-500/10 border-amber-500/30' }
     : live
       ? { label: 'Käynnissä', className: 'text-rose-300 bg-rose-500/10 border-rose-500/30' }
-      : { label: 'Lopputulos (3 erää)', className: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
+      : {
+          label: finalScoreLabel(match.result?.decidedBy, match.periods.length),
+          className: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+        }
+  const result = match.result
+  const extraRows =
+    result && result.decidedBy !== 'regulation'
+      ? [
+          result.regulation ? { key: 'regulation', label: 'Varsinainen peliaika', score: result.regulation } : null,
+          result.overtime ? { key: 'overtime', label: 'Jatkoaika', score: result.overtime } : null,
+          result.shootout ? { key: 'shootout', label: 'RL-kilpailu', score: result.shootout } : null,
+        ].filter((r): r is { key: string; label: string; score: { home: number; away: number } } => r !== null)
+      : []
 
   return (
     <div className="bg-[#1C2541] rounded-2xl p-4 sm:p-6 border border-slate-700/60 shadow-xl">
@@ -68,7 +81,11 @@ export function PeriodScoreCard({
               {upcoming ? 'vs' : `${match.scoreHome}–${match.scoreAway}`}
             </div>
           </div>
-          <span className={`text-[11px] font-medium mt-2 px-2.5 py-0.5 rounded-full border ${badge.className}`}>
+          <span
+            data-testid="final-score-label"
+            title={!upcoming && !live ? decidedTitle(result?.decidedBy) : undefined}
+            className={`text-[11px] font-medium mt-2 px-2.5 py-0.5 rounded-full border ${badge.className}`}
+          >
             {badge.label}
           </span>
         </div>
@@ -141,6 +158,27 @@ export function PeriodScoreCard({
               </div>
             ))}
           </div>
+          {extraRows.length > 0 && (
+            <div className="mt-2 space-y-1.5" data-testid="result-breakdown">
+              {extraRows.map((r) => (
+                <div
+                  key={r.key}
+                  data-row={r.key}
+                  className={`flex items-center justify-between rounded-xl border px-3 py-2 ${
+                    r.key === 'regulation' ? 'border-slate-700/50 bg-[#1C2541]/60' : 'border-slate-700/50 bg-[#1C2541]'
+                  }`}
+                >
+                  <span className="text-[11px] font-medium text-slate-300">{r.label}</span>
+                  <span className="text-sm font-bold text-slate-100 tabular-nums">
+                    {r.score.home}–{r.score.away}
+                  </span>
+                </div>
+              ))}
+              {result?.shootout ? (
+                <p className="text-[10px] text-slate-500 px-1">RL-kilpailun voittaja saa lopputulokseen yhden lisämaalin.</p>
+              ) : null}
+            </div>
+          )}
         </div>
       )}
 

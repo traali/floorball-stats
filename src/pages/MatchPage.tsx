@@ -1,3 +1,4 @@
+import { scoreWithSuffix } from '../utils/matchResult'
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
@@ -185,7 +186,7 @@ export function MatchPage() {
             isHome: true,
             venueName: match.venueName,
             categoryName: match.categoryName,
-            score: match.phase === 'upcoming' ? undefined : `${match.scoreHome}–${match.scoreAway}`,
+            score: match.phase === 'upcoming' ? undefined : scoreWithSuffix(match.scoreHome, match.scoreAway, match.result?.decidedBy),
           },
         )}
       />

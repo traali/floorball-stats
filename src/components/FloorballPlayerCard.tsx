@@ -68,6 +68,7 @@ export function FloorballPlayerCard({
           awayTeam: f.awayTeam,
           scoreHome: f.scoreHome,
           scoreAway: f.scoreAway,
+          score: f.score,
           categoryName: f.categoryName,
           goals: pm?.goals ?? 0,
           assists: pm?.assists ?? 0,
@@ -165,7 +166,7 @@ export function FloorballPlayerCard({
                 ) : (
                   <>
                     {m.scoreHome != null ? (
-                      <p className="font-mono text-sm font-bold text-[#6FFFE9]">{m.scoreHome}–{m.scoreAway}</p>
+                      <p className="font-mono text-sm font-bold text-[#6FFFE9]">{m.score || `${m.scoreHome}–${m.scoreAway}`}</p>
                     ) : null}
                     <p className="text-[11px] text-slate-400">
                       {m.goals}+{m.assists}={m.goals + m.assists}p

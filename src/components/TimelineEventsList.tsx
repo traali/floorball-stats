@@ -2,6 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { SalibandyGoalEvent, SalibandyPenaltyEvent } from '../types/salibandy'
 import { Goal, AlertTriangle, User } from 'lucide-react'
+import { periodLabel } from '../utils/matchResult'
 
 interface TimelineEventsListProps {
   goals: SalibandyGoalEvent[]
@@ -76,6 +77,9 @@ export const TimelineEventsList: React.FC<TimelineEventsListProps> = ({ goals, p
                           {g.scoreHome} – {g.scoreAway}
                         </span>
                       </div>
+                      {g.isShootoutGoal && g.scorerName !== 'RL-kilpailun voittomaali' && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">RL-kilpailun voittomaali</p>
+                      )}
                       {g.assistName && (
                         <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                           <User className="w-3 h-3 text-slate-500" />
@@ -85,7 +89,7 @@ export const TimelineEventsList: React.FC<TimelineEventsListProps> = ({ goals, p
                     </div>
                   </div>
                   <span className="text-[11px] font-semibold text-slate-400">
-                    {g.period}. Erä
+                    {periodLabel(g.period)}
                   </span>
                 </div>
               )
@@ -116,7 +120,7 @@ export const TimelineEventsList: React.FC<TimelineEventsListProps> = ({ goals, p
                     </div>
                   </div>
                   <span className="text-[11px] font-semibold text-amber-400/70">
-                    {p.period}. Erä
+                    {periodLabel(p.period)}
                   </span>
                 </div>
               )

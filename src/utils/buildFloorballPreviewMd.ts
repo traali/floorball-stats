@@ -4,6 +4,7 @@ import type {
   SalibandyRosterPlayer,
   SalibandyStandingRow,
 } from '../types/salibandy'
+import { decidedSuffix, extraPeriodsText } from './matchResult.ts'
 
 function table(rows: SalibandyStandingRow[]): string {
   if (!rows.length) return '_ei taulukkoa_'
@@ -91,11 +92,13 @@ export function buildFloorballPreviewMd(opts: {
   awayRoster?: SalibandyRosterPlayer[]
 }): string {
   const m = opts.match
+  const tag = m.phase === 'upcoming' ? '' : decidedSuffix(m.result?.decidedBy)
   const score =
-    m.phase === 'upcoming' ? 'vs' : `${m.scoreHome}–${m.scoreAway}`
+    m.phase === 'upcoming' ? 'vs' : `${m.scoreHome}–${m.scoreAway}${tag ? ` ${tag}` : ''}`
+  const extra = m.phase === 'upcoming' ? '' : extraPeriodsText(m.result, 'fi')
   const periods = m.phase === 'upcoming'
     ? ''
-    : m.periods.map((p) => `${p.period}. erä ${p.scoreHome}–${p.scoreAway}`).join(', ')
+    : [m.periods.map((p) => `${p.period}. erä ${p.scoreHome}–${p.scoreAway}`).join(', '), extra].filter(Boolean).join('; ')
   const leaders = opts.leaders.length
     ? opts.leaders
         .slice(0, 8)

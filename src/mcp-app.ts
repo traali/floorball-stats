@@ -17,6 +17,7 @@ import {
   publishWebMcpStatus,
   type ModelContextTool,
 } from './webmcp'
+import { extraPeriodsText } from './utils/matchResult.ts'
 
 function textResult(text: string, extra?: Record<string, unknown>) {
   return {
@@ -34,7 +35,11 @@ export async function getFloorballMatchCard(params: { matchId?: string; teamId?:
   const match = await fetchSalibandyMatch(matchId)
   if (!match) return textResult(`Match ${matchId} was not found on SSBL.`)
 
-  const periodSummary = match.periods.map((p) => `${p.period}. period ${p.scoreHome}–${p.scoreAway}`).join(', ')
+  const extra = extraPeriodsText(match.result, 'en')
+  const periodSummary = [match.periods.map((p) => `${p.period}. period ${p.scoreHome}–${p.scoreAway}`).join(', '), extra]
+    .filter(Boolean)
+    .join('; ')
+  const decided = match.result?.decidedBy && match.result.decidedBy !== 'regulation' ? ` (${match.result.decidedBy})` : ''
   const stats: SportStatsContract = formatFloorballStatsContract({
     matchId,
     recentForm: [],
@@ -52,7 +57,7 @@ export async function getFloorballMatchCard(params: { matchId?: string; teamId?:
   const summary =
     match.phase === 'upcoming'
       ? `${match.homeTeamName} vs ${match.awayTeamName} — upcoming ${match.date} ${match.time}.`
-      : `${match.homeTeamName} ${match.scoreHome}–${match.scoreAway} ${match.awayTeamName}. Periods: ${periodSummary}.`
+      : `${match.homeTeamName} ${match.scoreHome}–${match.scoreAway}${decided} ${match.awayTeamName}. Periods: ${periodSummary}.`
 
   return {
     content: [{ type: 'text' as const, text: summary }],
@@ -65,6 +70,7 @@ export async function getFloorballMatchCard(params: { matchId?: string; teamId?:
       scoreHome: match.scoreHome,
       scoreAway: match.scoreAway,
       periods: match.periods,
+      result: match.result,
       venueName: match.venueName,
       date: match.date,
       time: match.time,
