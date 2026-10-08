@@ -50,7 +50,7 @@ export async function getFloorballMatchCard(params: { matchId?: string; teamId?:
       lastResult: `${match.scoreHome}–${match.scoreAway}`,
     },
     periodScores: periodSummary,
-    topScorer: match.goals[0] ? `${match.goals[0].scorerName}` : '',
+    topScorer: match.goals.find((g) => !g.isOwnGoal && !g.isShootoutGoal)?.scorerName ?? '',
     totalPenaltiesMin: match.penalties.length ? match.penalties.length * 2 : 0,
     baseUrl: 'https://floorball-stats.pages.dev',
   })

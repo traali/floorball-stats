@@ -149,9 +149,8 @@ describe('fetchSalibandyMatch: rows add up to the final', () => {
     assert.equal(so.length, 1)
     assert.equal(so[0].scorerName, 'RL-kilpailun voittomaali')
     assert.equal(so[0].team, 'away')
-    // 19:33 Indians 2–1 really has no scorer in TASO; only the shootout goal is renamed.
-    assert.equal(d.goals.filter((g) => g.scorerName === 'Tuntematon').length, 1)
-    assert.equal(d.goals.find((g) => g.scorerName === 'Tuntematon').period, '1')
+    // 19:33 Indians 2–1 is an own goal (TASO goals[] «OM»), covered in goalScorer.test.mjs.
+    assert.ok(!d.goals.some((g) => g.scorerName === 'Tuntematon'))
     assert.equal(d.goalkeepers.home.goalsConceded, 4, 'SPV scored 4 in play; the shootout +1 is not a goal against')
     assert.ok(!computePlayerLeaders(d).some((l) => l.playerName === 'RL-kilpailun voittomaali'))
   })
