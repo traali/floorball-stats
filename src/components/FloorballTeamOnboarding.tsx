@@ -90,7 +90,7 @@ export function FloorballTeamOnboarding({ onSelectTeam, currentTeamId }: Floorba
             <input
               type="text"
               required
-              placeholder="esim. Westend Indians P14"
+              placeholder="Joukkueen nimi"
               value={teamName}
               onChange={(e) => setTeamName(e.target.value)}
               className="w-full px-3.5 py-2 rounded-xl bg-[#0B132B] border border-slate-700 text-white text-xs focus:outline-none focus:border-[#6FFFE9] transition-colors"
@@ -101,7 +101,7 @@ export function FloorballTeamOnboarding({ onSelectTeam, currentTeamId }: Floorba
             <label className="text-xs font-semibold text-slate-300">Ikäluokka / Sarja</label>
             <input
               type="text"
-              placeholder="esim. P14 Haastajasarja"
+              placeholder="Sarja"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="w-full px-3.5 py-2 rounded-xl bg-[#0B132B] border border-slate-700 text-white text-xs focus:outline-none focus:border-[#6FFFE9] transition-colors"
