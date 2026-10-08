@@ -1,3 +1,4 @@
+import type { DecidedBy, ResultBreakdown } from '../utils/matchResult'
 /**
  * Salibandy / SSBL Torneopal Floorball Data Types
  */
@@ -19,6 +20,8 @@ export interface SalibandyGoalEvent {
   isPowerplayGoal?: boolean
   isShorthandedGoal?: boolean
   isEmptyNetGoal?: boolean
+  /** TASO's extra goal for the shootout winner (period 5, no scorer). */
+  isShootoutGoal?: boolean
 }
 
 export interface SalibandyPenaltyEvent {
@@ -92,6 +95,8 @@ export interface SalibandyMatchDetail {
   spectators?: number
   playingTimeMin?: number
   periods: SalibandyPeriodScore[]
+  /** Regulation / overtime / shootout, from es_*, p4s_*, ps_* (see utils/matchResult.ts). */
+  result?: ResultBreakdown
   goals: SalibandyGoalEvent[]
   penalties: SalibandyPenaltyEvent[]
   saves: SalibandySaveEvent[]
@@ -139,6 +144,7 @@ export interface SalibandyTeamFixture {
   score?: string
   scoreHome?: number
   scoreAway?: number
+  decidedBy?: DecidedBy
   isHome: boolean
   isWin?: boolean
   isDraw?: boolean
@@ -290,6 +296,7 @@ export interface SalibandyGroupMatch {
   awayTeamId?: string
   scoreHome?: number
   scoreAway?: number
+  decidedBy?: DecidedBy
   status: string
   venueName?: string
 }

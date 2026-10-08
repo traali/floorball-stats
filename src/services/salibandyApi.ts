@@ -30,6 +30,7 @@ import type {
   DiscoveryHit,
 } from '../types/salibandy'
 import { formatClock, helsinkiDateISO, isKickoffUpcoming } from '../utils/matchContext.ts'
+import { resultBreakdown, scoreWithSuffix } from '../utils/matchResult.ts'
 
 /** 0–0 on a game that has not started is a Torneopal placeholder, not a draw. */
 export function floorballScore(
@@ -267,16 +268,21 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
       }
     }
 
+    const result = resultBreakdown(m)
+
     for (const ev of rawEvents) {
       if (ev.code === 'maali') {
         const key = `${ev.time}_${ev.team}`
         const fiText = String(ev.code_fi || '').toLowerCase()
+        // The shootout winner's extra goal: period 5 «maali», with no player
+        // (2026-27) or with the deciding shooter (older seasons, «maali (VL 5-4)»).
+        const isShootoutGoal = Boolean(result.shootout) && String(ev.period) === '5'
         goals.push({
           eventId: String(ev.event_id || Math.random()),
           code: 'maali',
           time: String(ev.time || '00:00'),
           period: String(ev.period || '1'),
-          scorerName: String(ev.player_name || 'Tuntematon'),
+          scorerName: isShootoutGoal && !ev.player_name ? 'RL-kilpailun voittomaali' : String(ev.player_name || 'Tuntematon'),
           scorerShirtNumber: String(ev.shirt_number || ''),
           scorerPlayerId: ev.player_id ? String(ev.player_id) : undefined,
           assistName: assistsMap.get(key) || undefined,
@@ -288,6 +294,7 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
           isPowerplayGoal: fiText.includes('yv') || fiText.includes('ylivoima'),
           isShorthandedGoal: fiText.includes('av') || fiText.includes('alivoima'),
           isEmptyNetGoal: fiText.includes('tm') || fiText.includes('tyhjä'),
+          ...(isShootoutGoal ? { isShootoutGoal: true } : {}),
         })
       }
     }
@@ -337,8 +344,9 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
       }
     }
 
-    const homeConceded = goals.filter(g => g.team === 'away').length
-    const awayConceded = goals.filter(g => g.team === 'home').length
+    // The shootout's extra goal is not a goal against a goalkeeper in play.
+    const homeConceded = goals.filter(g => g.team === 'away' && !g.isShootoutGoal).length
+    const awayConceded = goals.filter(g => g.team === 'home' && !g.isShootoutGoal).length
 
     const homeSavePct = homeSaves + homeConceded > 0
       ? `${((homeSaves / (homeSaves + homeConceded)) * 100).toFixed(1)}%`
@@ -405,6 +413,7 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
       spectators: spectators || undefined,
       playingTimeMin: m.playing_time_min ? Number(m.playing_time_min) : 45,
       periods,
+      ...(hasScore ? { result } : {}),
       goals,
       penalties,
       saves,
@@ -576,6 +585,7 @@ export async function fetchSalibandyTeamFixtures(teamId: string): Promise<Saliba
       const scored = floorballScore(m)
       const scoreHome = scored?.home
       const scoreAway = scored?.away
+      const decidedBy = resultBreakdown(m).decidedBy
 
       let isWin = false
       let isDraw = false
@@ -607,9 +617,10 @@ export async function fetchSalibandyTeamFixtures(teamId: string): Promise<Saliba
         awayTeam: String(m.team_B_name || 'Vieras'),
         homeTeamId: m.team_A_id ? String(m.team_A_id) : undefined,
         awayTeamId: m.team_B_id ? String(m.team_B_id) : undefined,
-        score: scored ? `${scored.home}–${scored.away}` : undefined,
+        score: scored ? scoreWithSuffix(scored.home, scored.away, decidedBy) : undefined,
         scoreHome,
         scoreAway,
+        ...(scored && decidedBy !== 'regulation' ? { decidedBy } : {}),
         isHome,
         isWin,
         isDraw,
@@ -689,6 +700,7 @@ export function computePlayerLeaders(match: SalibandyMatchDetail): SalibandyPlay
   const leadersMap = new Map<string, SalibandyPlayerLeader>()
 
   for (const g of match.goals) {
+    if (g.isShootoutGoal) continue
     const key = `${g.scorerName}_${g.team}`
     const existing = leadersMap.get(key) || {
       playerName: g.scorerName,
@@ -867,6 +879,7 @@ function mapGroupMatch(m: Record<string, unknown>): SalibandyGroupMatch {
     awayTeamId: numericId(m.team_B_id),
     scoreHome: scored?.home,
     scoreAway: scored?.away,
+    ...(scored && resultBreakdown(m).decidedBy !== 'regulation' ? { decidedBy: resultBreakdown(m).decidedBy } : {}),
     status: str(m.status),
     venueName: m.venue_name ? str(m.venue_name) : undefined,
   }

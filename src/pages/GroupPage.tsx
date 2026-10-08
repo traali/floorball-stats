@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { fetchSalibandyGroup, mapGroupTeamsToStandings } from '../services/salibandyApi'
 import type { SalibandyGroupDetail } from '../types/salibandy'
 import { FloorballStandingsTable } from '../components/FloorballStandingsTable'
+import { decidedTitle, scoreWithSuffix } from '../utils/matchResult'
 
 export function GroupPage() {
   const { compId = '', catId = '', groupId = '' } = useParams()
@@ -62,7 +63,9 @@ export function GroupPage() {
                   className="w-full text-left rounded-xl border border-slate-800 bg-[#1C2541] px-3 py-3 hover:border-[#5BC0BE]/50"
                 >
                   <p className="text-sm font-semibold">{m.homeTeam} – {m.awayTeam}</p>
-                  <p className="text-[11px] text-[#6FFFE9] font-mono">{m.scoreHome}–{m.scoreAway}</p>
+                  <p className="text-[11px] text-[#6FFFE9] font-mono" title={decidedTitle(m.decidedBy)}>
+                    {scoreWithSuffix(m.scoreHome ?? 0, m.scoreAway ?? 0, m.decidedBy)}
+                  </p>
                 </button>
               ))}
             </section>
