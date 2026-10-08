@@ -22,6 +22,8 @@ export interface SalibandyGoalEvent {
   isEmptyNetGoal?: boolean
   /** TASO's extra goal for the shootout winner (period 5, no scorer). */
   isShootoutGoal?: boolean
+  /** TASO goals[] row says «OM» / «maali Oma». */
+  isOwnGoal?: boolean
 }
 
 export interface SalibandyPenaltyEvent {

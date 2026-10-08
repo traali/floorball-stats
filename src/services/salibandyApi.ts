@@ -31,6 +31,7 @@ import type {
 } from '../types/salibandy'
 import { formatClock, helsinkiDateISO, isKickoffUpcoming } from '../utils/matchContext.ts'
 import { resultBreakdown, scoreWithSuffix } from '../utils/matchResult.ts'
+import { goalRowsById, resolveScorer } from '../utils/goalScorer.ts'
 
 /** 0–0 on a game that has not started is a Torneopal placeholder, not a draw. */
 export function floorballScore(
@@ -269,6 +270,7 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
     }
 
     const result = resultBreakdown(m)
+    const goalRows = goalRowsById(m.goals)
 
     for (const ev of rawEvents) {
       if (ev.code === 'maali') {
@@ -277,15 +279,16 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
         // The shootout winner's extra goal: period 5 «maali», with no player
         // (2026-27) or with the deciding shooter (older seasons, «maali (VL 5-4)»).
         const isShootoutGoal = Boolean(result.shootout) && String(ev.period) === '5'
+        const scorer = isShootoutGoal ? resolveScorer(ev) : resolveScorer(ev, goalRows.get(String(ev.event_id ?? '')))
         goals.push({
           eventId: String(ev.event_id || Math.random()),
           code: 'maali',
           time: String(ev.time || '00:00'),
           period: String(ev.period || '1'),
-          scorerName: isShootoutGoal && !ev.player_name ? 'RL-kilpailun voittomaali' : String(ev.player_name || 'Tuntematon'),
-          scorerShirtNumber: String(ev.shirt_number || ''),
-          scorerPlayerId: ev.player_id ? String(ev.player_id) : undefined,
-          assistName: assistsMap.get(key) || undefined,
+          scorerName: isShootoutGoal && !scorer.name ? 'RL-kilpailun voittomaali' : scorer.name || 'Tuntematon',
+          scorerShirtNumber: scorer.shirt || '',
+          scorerPlayerId: scorer.playerId,
+          assistName: scorer.kind === 'own' ? undefined : assistsMap.get(key) || undefined,
           assistPlayerId: undefined,
           team: ev.team === 'A' ? 'home' : 'away',
           scoreHome: Number(ev.s_A || 0),
@@ -295,6 +298,7 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
           isShorthandedGoal: fiText.includes('av') || fiText.includes('alivoima'),
           isEmptyNetGoal: fiText.includes('tm') || fiText.includes('tyhjä'),
           ...(isShootoutGoal ? { isShootoutGoal: true } : {}),
+          ...(scorer.kind === 'own' ? { isOwnGoal: true } : {}),
         })
       }
     }
@@ -700,7 +704,7 @@ export function computePlayerLeaders(match: SalibandyMatchDetail): SalibandyPlay
   const leadersMap = new Map<string, SalibandyPlayerLeader>()
 
   for (const g of match.goals) {
-    if (g.isShootoutGoal) continue
+    if (g.isShootoutGoal || g.isOwnGoal) continue
     const key = `${g.scorerName}_${g.team}`
     const existing = leadersMap.get(key) || {
       playerName: g.scorerName,
