@@ -3,6 +3,7 @@ import { Search, ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { IceMark } from './IceMark'
 import { WebMcpBadge } from './WebMcpBadge'
+import { VersionBadge } from './VersionBadge'
 
 interface HeaderProps {
   isEmbed: boolean
@@ -31,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ isEmbed, onBack }) => {
             <div className="min-w-0">
               <h1 className="font-bold text-base tracking-wide text-[#6FFFE9] leading-none">Floorball Stats</h1>
               <p className="text-[10px] text-[#5BC0BE] font-medium mt-0.5">SSBL · Salibandyliitto</p>
+              <VersionBadge className="mt-1" />
             </div>
           </button>
         </div>
