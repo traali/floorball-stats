@@ -1,1 +1,4 @@
-/* /index.html 200
+# No rules on purpose. With no 404.html, Cloudflare Pages serves index.html
+# (HTTP 200) for any path that is not a file, e.g. /match/123, and src/boot.ts
+# hands it to the hash router. The old `/* /index.html 200` rule never took
+# effect: /match/<id> still answered 404 through public/404.html.
