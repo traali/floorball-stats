@@ -361,6 +361,8 @@ export interface DiscoveryHit {
   title: string
   subtitle: string
   crest?: string
+  /** Club behind the hit, when the API told us. Used for player search via favourites. */
+  clubId?: string
 }
 
 export interface FavoriteTeam {

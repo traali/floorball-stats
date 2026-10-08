@@ -1,18 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Calendar, Heart, Search, Shield, User } from 'lucide-react'
-import { useFavorites } from '../hooks/useFavorites'
+import { useFavorites, type FavoriteItem } from '../hooks/useFavorites'
 import { parseFederationTeamId, readLastTeamId, writeLastTeamId } from '../utils/teamSelection'
+import { readRecentSearches } from '../utils/recentSearches'
 import { IceMark } from '../components/IceMark'
 
-const QUICK = ['Westend', 'EräViikingit', 'SB-Pro', 'U14', 'P13', 'Etelä-Suomi']
-
-const POPULAR = [
-  { q: 'Westend Indians', name: 'Westend Indians', hint: 'Hae seuroista' },
-  { q: 'SB-Pro', name: 'SB-Pro', hint: 'Hae seuroista' },
-  { q: 'EräViikingit', name: 'EräViikingit', hint: 'Hae seuroista' },
-  { q: 'ToBK', name: 'ToBK', hint: 'Hae seuroista' },
-]
+const FAV_ICON = { team: Shield, player: User, club: Heart } as const
 
 export function Home() {
   const navigate = useNavigate()
@@ -22,17 +16,18 @@ export function Home() {
   const [matchId, setMatchId] = useState('')
   const [teamId, setTeamId] = useState('')
   const [playerId, setPlayerId] = useState('')
+  const [recent] = useState<string[]>(() => readRecentSearches())
 
-  const favoriteTeams = useMemo(
-    () =>
-      favorites
-        .filter((f) => f.kind === 'team')
-        .flatMap((f) => {
-          const parsed = parseFederationTeamId(f.id)
-          return parsed ? [{ ...f, teamId: parsed }] : []
-        }),
-    [favorites],
-  )
+  const sortedFavorites = useMemo(() => {
+    const order = { team: 0, player: 1, club: 2 }
+    return [...favorites].sort((a, b) => order[a.kind] - order[b.kind])
+  }, [favorites])
+
+  function openFavorite(f: FavoriteItem) {
+    if (f.kind === 'team') goTeam(f.id)
+    else if (f.kind === 'player') navigate(`/player/${f.id}`)
+    else navigate(`/club/${f.id}`)
+  }
 
   useEffect(() => {
     const queryTeamId = parseFederationTeamId(searchParams.get('team'))
@@ -85,7 +80,7 @@ export function Home() {
           </span>
         </h1>
         <p className="text-sm text-slate-400">
-          Hae joukkueen nimellä. Ottelut ja tulokset tulevat salibandyn tulospalvelusta.
+          Hae joukkuetta, seuraa tai pelaajaa (seura + sukunimi). Kaikki tieto tulee salibandyn tulospalvelusta.
         </p>
       </div>
 
@@ -103,7 +98,9 @@ export function Home() {
           autoFocus
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Hae Westend, U14, pelaaja tai liitä salibandy.fi-linkki"
+          placeholder="Joukkue, seura tai pelaaja"
+          enterKeyHint="search"
+          aria-label="Hae joukkuetta, seuraa tai pelaajaa"
           className="grow bg-transparent border-none text-white text-sm px-3.5 py-3.5 focus:outline-none placeholder:text-slate-500"
         />
         <button type="submit" className="px-4 py-2.5 mr-1.5 rounded-xl bg-[#3A506B] text-[#6FFFE9] text-xs font-bold">
@@ -111,31 +108,38 @@ export function Home() {
         </button>
       </form>
 
-      <section className="space-y-2">
+      <section className="space-y-2" data-testid="home-favorites">
         <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
           <Heart className="w-3.5 h-3.5 text-rose-400" />
-          Suosikkijoukkueet
+          Suosikit
         </h2>
-        {favoriteTeams.length > 0 ? (
+        {sortedFavorites.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
-            {favoriteTeams.map((team) => (
-              <button
-                key={`${team.kind}-${team.teamId}`}
-                type="button"
-                onClick={() => goTeam(team.teamId)}
-                className="px-3 py-1.5 rounded-full border border-rose-400/30 bg-[#1C2541] text-[11px] font-semibold text-rose-200 hover:border-rose-300"
-              >
-                {team.name}
-              </button>
-            ))}
+            {sortedFavorites.map((f) => {
+              const Icon = FAV_ICON[f.kind]
+              return (
+                <button
+                  key={`${f.kind}-${f.id}`}
+                  type="button"
+                  onClick={() => openFavorite(f)}
+                  className="px-3 py-1.5 rounded-full border border-rose-400/30 bg-[#1C2541] text-[11px] font-semibold text-rose-200 hover:border-rose-300 flex items-center gap-1"
+                >
+                  <Icon className="w-3 h-3" />
+                  {f.name}
+                </button>
+              )
+            })}
           </div>
         ) : (
-          <p className="text-xs text-slate-500">Ei suosikkijoukkueita vielä. Lisää joukkue suosikiksi joukkuesivulta.</p>
+          <p className="text-xs text-slate-500">
+            Ei suosikkeja vielä. Hae joukkue tai pelaaja ja paina sydäntä – suosikit tallentuvat tähän puhelimeen.
+          </p>
         )}
       </section>
 
-      <div className="flex flex-wrap gap-1.5">
-        {QUICK.map((chip) => (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {recent.length > 0 ? <span className="text-[11px] text-slate-500 mr-1">Viimeisimmät:</span> : null}
+        {recent.map((chip) => (
           <button
             key={chip}
             type="button"
@@ -233,25 +237,6 @@ export function Home() {
         </div>
       </section>
 
-      <section className="space-y-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-          <Shield className="w-3.5 h-3.5 text-[#5BC0BE]" />
-          Seurat
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {POPULAR.map((t) => (
-            <button
-              key={t.q}
-              type="button"
-              onClick={() => goSearch(t.q)}
-              className="text-left bg-[#1C2541]/70 border border-slate-800 hover:border-[#5BC0BE]/50 rounded-xl p-3 min-h-[64px]"
-            >
-              <div className="font-bold text-xs text-slate-200 truncate">{t.name}</div>
-              <div className="text-[10px] text-slate-400 truncate mt-1">{t.hint}</div>
-            </button>
-          ))}
-        </div>
-      </section>
     </div>
   )
 }
