@@ -13,11 +13,16 @@ export function FloorballStandingsTable({ standings, highlightTeamId }: Floorbal
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-bold text-white">Sarjataulukko & Kuntopuntari</h3>
-          <p className="text-xs text-slate-400">Salibandyliiton virallinen sarjataulukko (Voitto 2p, Tasapeli 1p)</p>
+          <p className="text-xs text-slate-400">Salibandyliiton tulospalvelun sarjataulukko</p>
         </div>
         <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">SSBL Taso</span>
       </div>
 
+      {standings.length === 0 ? (
+        <p className="text-xs text-slate-400 rounded-xl border border-slate-800 bg-[#1C2541]/40 px-3 py-3" data-testid="no-standings">
+          Tulospalvelu ei julkaise sarjataulukkoa tälle lohkolle.
+        </p>
+      ) : (
       <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-[#1C2541]/40 backdrop-blur-md">
         <table className="w-full text-left text-xs">
           <thead className="bg-[#1C2541]/80 text-slate-400 font-semibold border-b border-slate-800">
@@ -82,6 +87,7 @@ export function FloorballStandingsTable({ standings, highlightTeamId }: Floorbal
           </tbody>
         </table>
       </div>
+      )}
     </div>
   )
 }

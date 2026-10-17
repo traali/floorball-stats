@@ -12,6 +12,8 @@ export type PrevGame = {
   goals: number
   assists: number
   pim: number
+  /** False when TASO kept no player stats for the game. */
+  statsSent?: boolean
 }
 
 function inHalf(date: string, category: string | undefined, half: 'syksy' | 'kevat' | 'all', year: string) {
@@ -55,6 +57,7 @@ export function previousGamesForPlayer(opts: {
       goals: m.goals,
       assists: m.assists,
       pim: m.pim,
+      statsSent: m.statsSent !== false,
     })
   }
 

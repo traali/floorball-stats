@@ -29,35 +29,20 @@ import type {
   SalibandyPlayerTeam,
   DiscoveryHit,
 } from '../types/salibandy'
-import { formatClock, helsinkiDateISO, isKickoffUpcoming } from '../utils/matchContext.ts'
+import { formatClock } from '../utils/matchContext.ts'
 import { resultBreakdown, scoreWithSuffix } from '../utils/matchResult.ts'
 import { goalRowsById, resolveScorer } from '../utils/goalScorer.ts'
+import { matchState, tasoScore, isWalkover, walkoverText, WALKOVER_TAG } from '../utils/matchStatus.ts'
 
-/** 0–0 on a game that has not started is a Torneopal placeholder, not a draw. */
+/**
+ * Score to show, or undefined: only Played / walkover / live games get one, and
+ * a future or empty 0–0 is not a draw. See utils/matchStatus.ts for the shapes.
+ */
 export function floorballScore(
   m: Record<string, unknown>,
   events?: Array<{ code?: string }>,
 ): { home: number; away: number } | undefined {
-  const rawA = m.fs_A
-  const rawB = m.fs_B
-  if (rawA == null || rawA === '' || rawB == null || rawB === '') return undefined
-  const home = Number(rawA)
-  const away = Number(rawB)
-  if (!Number.isFinite(home) || !Number.isFinite(away)) return undefined
-  if (home !== 0 || away !== 0) return { home, away }
-  const st = String(m.status || '').toLowerCase()
-  const time = String(m.time || '')
-  if (st === 'live' || st.includes('live') || st === '2' || time.includes("'")) return { home, away }
-  const date = String(m.date || '')
-  if (date === '' || isKickoffUpcoming(date, time) || date >= helsinkiDateISO()) return undefined
-  if (events) {
-    const eventful = events.some((ev) => {
-      const c = String(ev.code || '')
-      return c === 'maali' || c === 'syotto' || c.includes('min') || c === 'torjunta'
-    })
-    if (!eventful) return undefined
-  }
-  return { home, away }
+  return tasoScore(m, events)
 }
 
 const API_BASE = 'https://salibandy-api.torneopal.net/taso/rest'
@@ -77,7 +62,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000
 const CLUBS_TTL_MS = 5 * 60 * 1000
 const UPCOMING_TTL_MS = 30 * 1000
 const ROSTER_TTL_MS = 60 * 1000
-const LIVE_STATUSES = new Set(['live', 'started', 'playing', 'inplay', 'in_play', 'ongoing', '2', 'interrupted'])
+const LIVE_STATUSES = new Set(['live', 'break', 'started', 'playing', 'inplay', 'in_play', 'ongoing', '2', 'interrupted'])
 
 function matchPhase(data: unknown): 'live' | 'upcoming' | 'played' | 'none' {
   const rec = data && typeof data === 'object' ? (data as Record<string, unknown>) : null
@@ -377,15 +362,17 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
     const spectatorEvent = rawEvents.find(e => e.code === 'katsojia')
     const spectators = spectatorEvent ? Number(spectatorEvent.description || 0) : Number(m.attendance || 0)
 
-    const st = String(m.status || '').toLowerCase().trim()
-    const time = String(m.time || '')
-    const live = st === 'live' || st.includes('live') || st === '2' || time.includes("'")
+    const state = matchState(m)
+    const live = state === 'live' || state === 'break'
     const scored = floorballScore(m, rawEvents)
     const phase: SalibandyMatchDetail['phase'] = live
       ? 'live'
-      : scored
+      : scored || state === 'walkover'
         ? 'played'
         : 'upcoming'
+    const walkover = isWalkover(m)
+      ? walkoverText(m, String(m.team_A_name || 'Koti'), String(m.team_B_name || 'Vieras'))
+      : undefined
 
     const hasScore = phase !== 'upcoming' && scored !== undefined
 
@@ -400,7 +387,7 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
       categoryId: m.category_id ? String(m.category_id) : undefined,
       groupId: m.group_id ? String(m.group_id) : undefined,
       date: String(m.date || ''),
-      time: formatClock(time) || time,
+      time: formatClock(String(m.time || '')) || String(m.time || ''),
       venueName: String(m.venue_name || 'Peliareena'),
       venueLat: m.venue_lat ? Number(m.venue_lat) : undefined,
       venueLon: m.venue_lon ? Number(m.venue_lon) : undefined,
@@ -412,6 +399,9 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
       scoreAway: hasScore && scored ? scored.away : 0,
       isLive: phase === 'live',
       phase,
+      state,
+      ...(walkover ? { walkover } : {}),
+      ...(walkover && !scored ? { noScore: true } : {}),
       referee1: m.referee_1_name ? String(m.referee_1_name) : undefined,
       referee2: m.referee_2_name ? String(m.referee_2_name) : undefined,
       spectators: spectators || undefined,
@@ -466,6 +456,7 @@ export function mapRosterPlayer(p: Record<string, unknown>): SalibandyRosterPlay
   const full = `${first} ${last}`.trim() || str(p.player_name || p.name || p.fullname || '')
   const goals = pickNum(p, ['goals', 'g', 'maalit', 'player_goals', 'stat_goals'])
   const assists = pickNum(p, ['assists', 'a', 'syotot', 'syötöt', 'player_assists'])
+  const statsSent = playerStatsSent(p, ['goals', 'g', 'maalit', 'player_goals', 'assists', 'a', 'player_assists', 'points'])
   return {
     playerId: str(p.player_id || p.id || p.playerid),
     firstName: first,
@@ -479,6 +470,7 @@ export function mapRosterPlayer(p: Record<string, unknown>): SalibandyRosterPlay
     assists,
     points: pickNum(p, ['points', 'p', 'tehopisteet'], goals + assists),
     penaltiesMin: pickNum(p, ['penalties_min', 'pim', 'rm']) || pickNum(p, ['suspensions', 'warnings']) * 2,
+    statsSent,
   }
 }
 
@@ -590,12 +582,16 @@ export async function fetchSalibandyTeamFixtures(teamId: string): Promise<Saliba
       const scoreHome = scored?.home
       const scoreAway = scored?.away
       const decidedBy = resultBreakdown(m).decidedBy
+      const state = matchState(m)
+      const walkover = state === 'walkover'
+      // A running live score is not a result yet.
+      const final = state === 'played' || walkover
 
       let isWin = false
       let isDraw = false
       let isLoss = false
 
-      if (scored) {
+      if (scored && final) {
         if (isHome) {
           isWin = scored.home > scored.away
           isDraw = scored.home === scored.away
@@ -621,7 +617,9 @@ export async function fetchSalibandyTeamFixtures(teamId: string): Promise<Saliba
         awayTeam: String(m.team_B_name || 'Vieras'),
         homeTeamId: m.team_A_id ? String(m.team_A_id) : undefined,
         awayTeamId: m.team_B_id ? String(m.team_B_id) : undefined,
-        score: scored ? scoreWithSuffix(scored.home, scored.away, decidedBy) : undefined,
+        score: walkover
+          ? scored ? `${scored.home}–${scored.away} ${WALKOVER_TAG}` : 'Luovutus'
+          : scored ? scoreWithSuffix(scored.home, scored.away, decidedBy) : undefined,
         scoreHome,
         scoreAway,
         ...(scored && decidedBy !== 'regulation' ? { decidedBy } : {}),
@@ -634,6 +632,7 @@ export async function fetchSalibandyTeamFixtures(teamId: string): Promise<Saliba
         competitionId: m.competition_id ? String(m.competition_id) : undefined,
         categoryId: m.category_id ? String(m.category_id) : undefined,
         status: String(m.status || ''),
+        state,
         seasonYear,
         seasonHalf,
       }
@@ -763,6 +762,7 @@ export function lastFormForTeam(
       (m) =>
         m.scoreHome != null &&
         m.scoreAway != null &&
+        (m.state == null || m.state === 'played' || m.state === 'walkover') &&
         (m.homeTeamId === teamId || m.awayTeamId === teamId),
     )
     .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time))
@@ -779,7 +779,9 @@ export function lastFormForTeam(
 export function mapGroupTeamsToStandings(
   teams: SalibandyGroupTeam[],
   matches: SalibandyGroupMatch[] = [],
+  standingsSent = true,
 ): SalibandyStandingRow[] {
+  if (!standingsSent) return []
   return [...teams]
     .sort((a, b) => a.rank - b.rank || b.points - a.points)
     .map((t) => ({
@@ -871,8 +873,9 @@ function mapGroupTeam(t: Record<string, unknown>): SalibandyGroupTeam {
   }
 }
 
-function mapGroupMatch(m: Record<string, unknown>): SalibandyGroupMatch {
+export function mapGroupMatch(m: Record<string, unknown>): SalibandyGroupMatch {
   const scored = floorballScore(m)
+  const state = matchState(m)
   return {
     matchId: str(m.match_id),
     date: str(m.date),
@@ -885,8 +888,20 @@ function mapGroupMatch(m: Record<string, unknown>): SalibandyGroupMatch {
     scoreAway: scored?.away,
     ...(scored && resultBreakdown(m).decidedBy !== 'regulation' ? { decidedBy: resultBreakdown(m).decidedBy } : {}),
     status: str(m.status),
+    state,
     venueName: m.venue_name ? str(m.venue_name) : undefined,
   }
+}
+
+/**
+ * TASO sends standings only for some groups. U12T ES 2026-27 (627/1) has
+ * calculate_points "0" and null current_standing/points for every team; the
+ * Jatkopelit knockout (sb2025es/2195/5) is all null too. No table then.
+ */
+export function groupStandingsSent(g: Record<string, unknown>): boolean {
+  if (String(g.calculate_points ?? '') === '0') return false
+  const teams = Array.isArray(g.teams) ? (g.teams as Record<string, unknown>[]) : []
+  return teams.some((t) => (t.current_standing != null && t.current_standing !== '') || (t.points != null && t.points !== ''))
 }
 
 export async function fetchSalibandyGroup(
@@ -902,7 +917,16 @@ export async function fetchSalibandyGroup(
   const g = data?.group
   if (!g) return null
   const teams = Array.isArray(g.teams) ? (g.teams as Record<string, unknown>[]).map(mapGroupTeam) : []
-  const matches = Array.isArray(g.matches) ? (g.matches as Record<string, unknown>[]).map(mapGroupMatch) : []
+  // getGroup carries no games (its rounds[] have none); getMatches filters by group.
+  const listed = await tasoGet<{ matches?: Record<string, unknown>[] }>(
+    `getMatches?competition_id=${encodeURIComponent(competitionId)}&category_id=${encodeURIComponent(categoryId)}&group_id=${encodeURIComponent(groupId)}`,
+    `getMatches:group:${competitionId}:${categoryId}:${groupId}`,
+  )
+  const rawMatches = Array.isArray(g.matches) && g.matches.length ? g.matches : Array.isArray(listed?.matches) ? listed!.matches : []
+  const matches = (rawMatches as Record<string, unknown>[])
+    .filter((m) => !m.group_id || str(m.group_id) === str(g.group_id || groupId))
+    .map(mapGroupMatch)
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
   return {
     groupId: str(g.group_id || groupId),
     groupName: str(g.group_name),
@@ -912,6 +936,7 @@ export async function fetchSalibandyGroup(
     categoryName: str(g.category_name),
     teams,
     matches,
+    standingsSent: groupStandingsSent(g),
   }
 }
 
@@ -976,10 +1001,19 @@ function pickNum(obj: any, keys: string[], fallback = 0): number {
   return fallback
 }
 
-function mapPlayerMatch(m: any): SalibandyPlayerMatch {
-  const scoreHome = m.fs_A != null && m.fs_A !== '' ? num(m.fs_A) : undefined
-  const scoreAway = m.fs_B != null && m.fs_B !== '' ? num(m.fs_B) : undefined
+/** TASO sends player_goals/assists/points as "" when no stats were kept (junior games). */
+export function playerStatsSent(obj: any, keys: string[]): boolean {
+  return Boolean(obj) && keys.some((k) => obj[k] != null && obj[k] !== '' && Number.isFinite(Number(obj[k])))
+}
+
+export function mapPlayerMatch(m: any): SalibandyPlayerMatch {
+  const scored = tasoScore(m)
+  const scoreHome = scored?.home
+  const scoreAway = scored?.away
   const stats = m.stats || m.player_stats || m.statistics || {}
+  const statsSent =
+    playerStatsSent(m, ['player_goals', 'player_assists', 'player_points', 'goals', 'assists']) ||
+    playerStatsSent(stats, ['goals', 'assists'])
   const goals = pickNum(m, ['player_goals', 'goals', 'g', 'maalit', 'stat_goals'], pickNum(stats, ['goals', 'g', 'maalit']))
   const assists = pickNum(m, ['player_assists', 'assists', 'a', 'syotot', 'syötöt'], pickNum(stats, ['assists', 'a']))
   const pim = pickNum(m, ['suspensions', 'penalties_min', 'pim', 'rangaistusminuutit', 'penalty_minutes', 'rm'], pickNum(stats, ['suspensions', 'pim']))
@@ -1009,6 +1043,7 @@ function mapPlayerMatch(m: any): SalibandyPlayerMatch {
     shots,
     saves,
     venueName: m.venue_name ? str(m.venue_name) : undefined,
+    statsSent,
   }
 }
 

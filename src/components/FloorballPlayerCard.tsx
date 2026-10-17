@@ -70,6 +70,7 @@ export function FloorballPlayerCard({
           scoreAway: f.scoreAway,
           score: f.score,
           categoryName: f.categoryName,
+          statsSent: pm?.statsSent !== false && pm != null,
           goals: pm?.goals ?? 0,
           assists: pm?.assists ?? 0,
           pim: pm?.pim ?? 0,
@@ -88,6 +89,9 @@ export function FloorballPlayerCard({
   const plus = scopedMatches.reduce((s, m) => s + (m.plusMinus || 0), 0)
   const saves = scopedMatches.reduce((s, m) => s + (m.saves || 0), 0)
   const isGoalie = saves > 0
+  // Only add up what TASO sent; junior games come with player_goals "" etc.
+  const statsKnown = scopedMatches.some((m) => m.statsSent !== false)
+  const shown = (v: number) => (statsKnown ? v : '–')
 
   return (
     <div className="space-y-5">
@@ -109,10 +113,10 @@ export function FloorballPlayerCard({
 
       <div className={clsx('grid gap-2', isGoalie ? 'grid-cols-3 sm:grid-cols-6' : 'grid-cols-3 sm:grid-cols-5')}>
         <Stat label="Ottelut" value={gp} />
-        <Stat label="Maalit" value={g} />
-        <Stat label="Syötöt" value={a} />
-        <Stat label="Pisteet" value={g + a} />
-        <Stat label="RM" value={pim} />
+        <Stat label="Maalit" value={shown(g)} />
+        <Stat label="Syötöt" value={shown(a)} />
+        <Stat label="Pisteet" value={shown(g + a)} />
+        <Stat label="RM" value={shown(pim)} />
         {isGoalie ? <Stat label="Torj." value={saves} /> : null}
       </div>
       {plus !== 0 && (
@@ -168,10 +172,12 @@ export function FloorballPlayerCard({
                     {m.scoreHome != null ? (
                       <p className="font-mono text-sm font-bold text-[#6FFFE9]">{m.score || `${m.scoreHome}–${m.scoreAway}`}</p>
                     ) : null}
-                    <p className="text-[11px] text-slate-400">
-                      {m.goals}+{m.assists}={m.goals + m.assists}p
-                      {m.pim ? ` · ${m.pim} RM` : ''}
-                    </p>
+                    {m.statsSent ? (
+                      <p className="text-[11px] text-slate-400">
+                        {m.goals}+{m.assists}={m.goals + m.assists}p
+                        {m.pim ? ` · ${m.pim} RM` : ''}
+                      </p>
+                    ) : null}
                   </>
                 )}
               </div>

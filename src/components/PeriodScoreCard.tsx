@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import type { SalibandyMatchDetail, SalibandyTeamFixture } from '../types/salibandy'
 import { MapPin, Calendar, Clock, Trophy } from 'lucide-react'
-import { formatClock, isKickoffUpcoming } from '../utils/matchContext'
+import { formatClock, helsinkiDateISO, isKickoffUpcoming } from '../utils/matchContext'
 import { decidedTitle, finalScoreLabel } from '../utils/matchResult'
 
 export function PeriodScoreCard({
@@ -14,19 +14,29 @@ export function PeriodScoreCard({
   const navigate = useNavigate()
   const upcoming = match.phase === 'upcoming'
   const live = match.phase === 'live'
-  const isHomeWinner = !upcoming && !live && match.scoreHome > match.scoreAway
-  const isAwayWinner = !upcoming && !live && match.scoreAway > match.scoreHome
+  const noScore = upcoming || Boolean(match.noScore)
+  const isHomeWinner = !noScore && !live && match.scoreHome > match.scoreAway
+  const isAwayWinner = !noScore && !live && match.scoreAway > match.scoreHome
   const clock = formatClock(match.time) || match.time
   const pool = dayGames.length >= 2 ? dayGames : []
 
-  const badge = upcoming
+  // A past game TASO still lists without a result (e.g. 2022 «Fixture» 0–0) is not «Ennakko».
+  const noResult = upcoming && Boolean(match.date) && !isKickoffUpcoming(match.date, match.time) && match.date < helsinkiDateISO()
+  const badge = noResult
+    ? { label: 'Ei tulosta', className: 'text-slate-300 bg-slate-500/10 border-slate-500/30' }
+    : upcoming
     ? { label: 'Ennakko', className: 'text-amber-300 bg-amber-500/10 border-amber-500/30' }
     : live
-      ? { label: 'Käynnissä', className: 'text-rose-300 bg-rose-500/10 border-rose-500/30' }
-      : {
-          label: finalScoreLabel(match.result?.decidedBy, match.periods.length),
-          className: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+      ? {
+          label: match.state === 'break' ? 'Erätauko' : 'Käynnissä',
+          className: 'text-rose-300 bg-rose-500/10 border-rose-500/30',
         }
+      : match.walkover
+        ? { label: match.walkover, className: 'text-amber-300 bg-amber-500/10 border-amber-500/30' }
+        : {
+            label: finalScoreLabel(match.result?.decidedBy, match.periods.length),
+            className: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+          }
   const result = match.result
   const extraRows =
     result && result.decidedBy !== 'regulation'
@@ -78,7 +88,7 @@ export function PeriodScoreCard({
         <div className="flex flex-col items-center shrink-0">
           <div className="bg-[#0B132B] px-3 sm:px-5 py-2.5 rounded-2xl border border-slate-700/80">
             <div className="text-2xl sm:text-4xl font-black tracking-wide text-[#6FFFE9] tabular-nums">
-              {upcoming ? 'vs' : `${match.scoreHome}–${match.scoreAway}`}
+              {upcoming ? 'vs' : noScore ? '–' : `${match.scoreHome}–${match.scoreAway}`}
             </div>
           </div>
           <span
