@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { fetchSalibandyGroup, mapGroupTeamsToStandings } from '../services/salibandyApi'
 import type { SalibandyGroupDetail } from '../types/salibandy'
 import { FloorballStandingsTable } from '../components/FloorballStandingsTable'
 import { decidedTitle, scoreWithSuffix } from '../utils/matchResult'
+import { helsinkiDateISO } from '../utils/matchContext'
+import { defaultGroupDay, groupDays, groupMatchScoreText } from '../utils/groupDays'
 
 export function GroupPage() {
   const { compId = '', catId = '', groupId = '' } = useParams()
@@ -18,9 +20,12 @@ export function GroupPage() {
       .finally(() => setLoading(false))
   }, [compId, catId, groupId])
 
-  const standings = group ? mapGroupTeamsToStandings(group.teams) : []
-  const upcoming = (group?.matches || []).filter((m) => m.scoreHome == null).slice(0, 8)
-  const played = (group?.matches || []).filter((m) => m.scoreHome != null).slice(-12).reverse()
+  const standings = group ? mapGroupTeamsToStandings(group.teams, group.matches, group.standingsSent !== false) : []
+  const matches = useMemo(() => group?.matches || [], [group])
+  const days = useMemo(() => groupDays(matches), [matches])
+  const [pickedDay, setPickedDay] = useState<string | undefined>()
+  const day = pickedDay ?? defaultGroupDay(matches, helsinkiDateISO())
+  const dayGames = matches.filter((m) => m.date === day)
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 space-y-5">
@@ -35,41 +40,58 @@ export function GroupPage() {
             <h1 className="text-2xl font-black">{group.groupName}</h1>
             <p className="text-xs text-slate-400">{group.competitionName} · {group.categoryName}</p>
           </div>
+          {days.length > 0 && (
+            <section className="space-y-2" data-testid="group-games">
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Ottelut</h2>
+              {days.length > 1 && (
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  {days.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setPickedDay(d)}
+                      className={`shrink-0 text-[11px] px-2.5 py-1 rounded-lg font-semibold ${
+                        d === day ? 'bg-[#3A506B] text-[#6FFFE9] border border-[#5BC0BE]/40' : 'bg-[#1C2541] text-slate-400'
+                      }`}
+                    >
+                      {d.slice(8, 10)}.{d.slice(5, 7)}.
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-slate-500" data-testid="group-day">{day}</p>
+              {dayGames.map((m) => {
+                const live = m.state === 'live' || m.state === 'break'
+                return (
+                  <button
+                    key={m.matchId}
+                    type="button"
+                    data-testid="group-game"
+                    data-state={m.state || ''}
+                    onClick={() => navigate(`/match/${m.matchId}`)}
+                    className="w-full text-left rounded-xl border border-slate-800 bg-[#1C2541] px-3 py-2.5 hover:border-[#5BC0BE]/50 flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{m.homeTeam} – {m.awayTeam}</p>
+                      <p className="text-[11px] text-slate-400 truncate">
+                        {m.time?.slice(0, 5)}
+                        {m.venueName ? ` · ${m.venueName}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm text-[#6FFFE9] font-mono font-bold" title={decidedTitle(m.decidedBy)}>
+                        {groupMatchScoreText(m, (h, a) => scoreWithSuffix(h, a, m.decidedBy))}
+                      </p>
+                      {live && (
+                        <p className="text-[10px] font-bold text-rose-300">{m.state === 'break' ? 'Erätauko' : 'Käynnissä'}</p>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </section>
+          )}
           <FloorballStandingsTable standings={standings} />
-          {upcoming.length > 0 && (
-            <section className="space-y-2">
-              <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tulevat</h2>
-              {upcoming.map((m) => (
-                <button
-                  key={m.matchId}
-                  type="button"
-                  onClick={() => navigate(`/match/${m.matchId}`)}
-                  className="w-full text-left rounded-xl border border-slate-800 bg-[#1C2541] px-3 py-3 hover:border-[#5BC0BE]/50"
-                >
-                  <p className="text-sm font-semibold">{m.homeTeam} – {m.awayTeam}</p>
-                  <p className="text-[11px] text-slate-400">{m.date} {m.time?.slice(0, 5)}</p>
-                </button>
-              ))}
-            </section>
-          )}
-          {played.length > 0 && (
-            <section className="space-y-2">
-              <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pelatut</h2>
-              {played.map((m) => (
-                <button
-                  key={m.matchId}
-                  type="button"
-                  onClick={() => navigate(`/match/${m.matchId}`)}
-                  className="w-full text-left rounded-xl border border-slate-800 bg-[#1C2541] px-3 py-3 hover:border-[#5BC0BE]/50"
-                >
-                  <p className="text-sm font-semibold">{m.homeTeam} – {m.awayTeam}</p>
-                  <p className="text-[11px] text-[#6FFFE9] font-mono" title={decidedTitle(m.decidedBy)}>
-                    {scoreWithSuffix(m.scoreHome ?? 0, m.scoreAway ?? 0, m.decidedBy)}
-                  </p>
-                </button>
-              ))}
-            </section>
-          )}
         </>
       ) : (
         <p className="text-sm text-rose-400">Lohkoa ei löytynyt.</p>

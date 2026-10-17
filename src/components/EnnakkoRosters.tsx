@@ -48,15 +48,15 @@ function Card({
       <div className="mt-1.5 grid grid-cols-3 gap-1 text-center">
         <div className="rounded-lg bg-[#1C2541] py-1">
           <div className="text-[9px] uppercase text-slate-500">G</div>
-          <div className="text-sm font-black text-[#6FFFE9]">{p.goals}</div>
+          <div className="text-sm font-black text-[#6FFFE9]">{p.statsSent === false ? '–' : p.goals}</div>
         </div>
         <div className="rounded-lg bg-[#1C2541] py-1">
           <div className="text-[9px] uppercase text-slate-500">A</div>
-          <div className="text-sm font-black text-[#6FFFE9]">{p.assists}</div>
+          <div className="text-sm font-black text-[#6FFFE9]">{p.statsSent === false ? '–' : p.assists}</div>
         </div>
         <div className="rounded-lg bg-[#1C2541] py-1">
           <div className="text-[9px] uppercase text-slate-500">P</div>
-          <div className="text-sm font-black text-white">{p.points}</div>
+          <div className="text-sm font-black text-white">{p.statsSent === false ? '–' : p.points}</div>
         </div>
       </div>
       {prev.length > 0 && (
@@ -73,7 +73,7 @@ function Card({
                 {g.date.slice(5)} · {g.opponent}
               </span>
               <span className="shrink-0 font-mono">
-                {g.result === 'DNP' ? 'ei pelannut' : `${g.score} · ${g.goals}+${g.assists}=${g.goals + g.assists}p`}
+                {g.result === 'DNP' ? 'ei pelannut' : g.statsSent === false ? g.score : `${g.score} · ${g.goals}+${g.assists}=${g.goals + g.assists}p`}
               </span>
             </div>
           ))}

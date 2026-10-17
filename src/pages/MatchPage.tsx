@@ -80,7 +80,7 @@ export function MatchPage() {
           m.homeTeamId ? fetchSalibandyTeamFixtures(m.homeTeamId) : Promise.resolve([]),
           m.awayTeamId ? fetchSalibandyTeamFixtures(m.awayTeamId) : Promise.resolve([]),
         ])
-        if (group) setStandings(mapGroupTeamsToStandings(group.teams, group.matches))
+        if (group) setStandings(mapGroupTeamsToStandings(group.teams, group.matches, group.standingsSent !== false))
         if (home.length) setHomeRoster(home)
         if (away.length) setAwayRoster(away)
         setHomeFx(hfx)
@@ -186,7 +186,7 @@ export function MatchPage() {
             isHome: true,
             venueName: match.venueName,
             categoryName: match.categoryName,
-            score: match.phase === 'upcoming' ? undefined : scoreWithSuffix(match.scoreHome, match.scoreAway, match.result?.decidedBy),
+            score: match.phase === 'upcoming' ? undefined : match.noScore ? 'Luovutus' : `${scoreWithSuffix(match.scoreHome, match.scoreAway, match.result?.decidedBy)}${match.walkover ? ' luov.' : ''}`,
           },
         )}
       />

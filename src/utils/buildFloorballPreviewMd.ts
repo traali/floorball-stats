@@ -94,7 +94,11 @@ export function buildFloorballPreviewMd(opts: {
   const m = opts.match
   const tag = m.phase === 'upcoming' ? '' : decidedSuffix(m.result?.decidedBy)
   const score =
-    m.phase === 'upcoming' ? 'vs' : `${m.scoreHome}–${m.scoreAway}${tag ? ` ${tag}` : ''}`
+    m.phase === 'upcoming'
+      ? 'vs'
+      : m.noScore
+        ? (m.walkover || 'Luovutus')
+        : `${m.scoreHome}–${m.scoreAway}${tag ? ` ${tag}` : ''}${m.walkover ? ` (${m.walkover})` : ''}`
   const extra = m.phase === 'upcoming' ? '' : extraPeriodsText(m.result, 'fi')
   const periods = m.phase === 'upcoming'
     ? ''

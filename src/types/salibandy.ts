@@ -1,4 +1,5 @@
 import type { DecidedBy, ResultBreakdown } from '../utils/matchResult'
+import type { MatchState } from '../utils/matchStatus'
 /**
  * Salibandy / SSBL Torneopal Floorball Data Types
  */
@@ -92,6 +93,12 @@ export interface SalibandyMatchDetail {
   scoreAway: number
   isLive: boolean
   phase: 'live' | 'upcoming' | 'played'
+  /** TASO state incl. break / walkover (utils/matchStatus). */
+  state?: MatchState
+  /** «Luovutus: X luovutti» when TASO flags a walkover. */
+  walkover?: string
+  /** Walkover without a valid score (TASO fs "-2"): show no numbers. */
+  noScore?: boolean
   referee1?: string
   referee2?: string
   spectators?: number
@@ -132,6 +139,8 @@ export interface SalibandyRosterPlayer {
   assists: number
   points: number
   penaltiesMin: number
+  /** False when TASO sent no goal/assist numbers for this player (e.g. getTeam rosters). */
+  statsSent?: boolean
 }
 
 export interface SalibandyTeamFixture {
@@ -158,6 +167,7 @@ export interface SalibandyTeamFixture {
   status?: string
   seasonYear?: string
   seasonHalf?: 'syksy' | 'kevat' | 'all'
+  state?: MatchState
 }
 
 export interface SalibandySeasonGroup {
@@ -300,6 +310,7 @@ export interface SalibandyGroupMatch {
   scoreAway?: number
   decidedBy?: DecidedBy
   status: string
+  state?: MatchState
   venueName?: string
 }
 
@@ -312,6 +323,8 @@ export interface SalibandyGroupDetail {
   categoryName: string
   teams: SalibandyGroupTeam[]
   matches: SalibandyGroupMatch[]
+  /** TASO sent real standings (see groupStandingsSent). */
+  standingsSent?: boolean
 }
 
 export interface SalibandyPlayerTeam {
@@ -346,6 +359,8 @@ export interface SalibandyPlayerMatch {
   shots?: number
   saves?: number
   venueName?: string
+  /** False when TASO sent player_goals/assists/points as "" (no stats kept). */
+  statsSent?: boolean
 }
 
 export interface SalibandyPlayerProfile {

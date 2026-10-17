@@ -54,7 +54,7 @@ export function TeamPage() {
         const current = pickCurrentGroup(p.groups)
         if (current) {
           const detail = await fetchSalibandyGroup(current.competitionId, current.categoryId, current.groupId)
-          if (detail) setStandings(mapGroupTeamsToStandings(detail.teams, detail.matches))
+          if (detail) setStandings(mapGroupTeamsToStandings(detail.teams, detail.matches, detail.standingsSent !== false))
         }
       }
       setLoading(false)
