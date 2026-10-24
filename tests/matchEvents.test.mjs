@@ -33,10 +33,27 @@ describe('match events timeline (949684)', () => {
   })
 })
 describe('timeline order', () => {
-  it('period 1 chronological, Erä Loppui last', () => {
+  it('period 1 chronological, Erä päättyi last', () => {
     const p1 = buildTimeline(m)[0].items
-    assert.equal(p1.at(-1).label, 'Erä Loppui')
+    assert.equal(p1.at(-1).label, 'Erä päättyi'); assert.equal(p1.at(-1).time, '')
     const goals = p1.filter((i) => i.kind === 'goal').map((g) => g.time)
     assert.deepEqual(goals, ['2:54', '3:15', '3:56', '8:58'])
+  })
+})
+
+describe('period markers (fix: bogus 15+44:59, duplicate Jaksovaihtui)', () => {
+  const t = buildTimeline(m)
+  const markers = t.flatMap((p) => p.items.filter((i) => i.kind === 'marker'))
+  it('no "+mm:ss" bogus clock and no raw "Erä Loppui"', () => {
+    assert.ok(!JSON.stringify(t).includes('Erä Loppui'))
+    assert.ok(markers.every((x) => !/\+/.test(x.time)))
+  })
+  it('Jaksovaihtui at most once per period (TASO sent it twice in period 2)', () => {
+    for (const p of t) assert.ok(p.items.filter((i) => i.label === 'Jakso vaihtui').length <= 1)
+    assert.equal(t[1].items.filter((i) => i.label === 'Jakso vaihtui').length, 1)
+  })
+  it('synthetic 30+44:59 end of period 2 → plain Erä päättyi', () => {
+    const tt = buildTimeline({ events: [{ event_id: 1, code: 'jaksoloppui', code_fi: 'Erä Loppui', time: '30+44:59', period: 2 }] })
+    assert.deepEqual(tt[0].items[0], { kind: 'marker', id: '1', time: '', label: 'Erä päättyi' })
   })
 })

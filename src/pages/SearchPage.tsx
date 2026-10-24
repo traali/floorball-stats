@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Calendar, Heart, Layers, Search, Shield, Trophy, User, Users } from 'lucide-react'
+import { Calendar, Heart, History, Layers, Search, Shield, Trophy, User, Users } from 'lucide-react'
 import { enrichPlayerShirts, getTasoFailure, searchSalibandy, type SearchResult } from '../services/salibandyApi'
 import { withShirt } from '../utils/shirt'
 import type { DiscoveryHit } from '../types/salibandy'
@@ -31,13 +31,17 @@ export function SearchPage() {
     }
     let cancelled = false
     setLoading(true)
+    setResult(EMPTY_RESULT)
     setFailed(false)
     setTimedOut(false)
     let timer: ReturnType<typeof setTimeout> | undefined
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => { if (!cancelled) setTimedOut(true); reject(new Error('timeout')) }, SEARCH_TIMEOUT_MS)
     })
-    Promise.race([searchSalibandy(q, { favoriteClubIds: favClubKey ? favClubKey.split(',') : [] }), timeout])
+    Promise.race([searchSalibandy(q, {
+      favoriteClubIds: favClubKey ? favClubKey.split(',') : [],
+      onPartial: (r) => { if (!cancelled && r.hits.length > 0) setResult(r) },
+    }), timeout])
       .then((res) => {
         if (cancelled) return
         setResult(res)
@@ -121,21 +125,32 @@ export function SearchPage() {
         </button>
       </form>
       {recent.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-slate-500 mr-1">Viimeisimmät:</span>
+        <section aria-label="Viimeisimmät haut" data-testid="recent-searches" className="flex flex-wrap items-center gap-1.5 pb-3 border-b border-dashed border-slate-800">
+          <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide font-bold text-slate-500 mr-1">
+            <History className="w-3 h-3" /> Viimeisimmät haut
+          </span>
           {recent.map((chip) => (
             <button
               key={chip}
               type="button"
+              data-testid="recent-search"
+              aria-label={`Hae uudelleen: ${chip}`}
               onClick={() => submit(chip)}
-              className="px-3 py-1.5 rounded-full border border-slate-800 bg-[#1C2541] text-[11px] font-semibold text-slate-300 hover:border-[#5BC0BE]/50"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-dashed border-slate-700 bg-transparent text-[11px] text-slate-400 hover:text-slate-200 hover:border-[#5BC0BE]/50"
             >
+              <Search className="w-3 h-3" />
               {chip}
             </button>
           ))}
-        </div>
+        </section>
       ) : null}
-      {loading ? (
+      {q && (hits.length > 0 || !loading) ? (
+        <h2 className="text-[11px] uppercase tracking-wide font-bold text-slate-400" data-testid="results-heading">Tulokset haulle «{q}»</h2>
+      ) : null}
+      {loading && hits.length > 0 ? (
+        <p className="text-xs text-slate-400" data-testid="search-streaming">Haetaan lisää tämän päivän otteluiden kokoonpanoista…</p>
+      ) : null}
+      {loading && hits.length === 0 ? (
         <p className="text-sm text-slate-400">Haetaan tulospalvelusta…</p>
       ) : !q ? (
         <p className="text-sm text-slate-500">Aloita hakemalla joukkuetta, seuraa tai pelaajaa.</p>

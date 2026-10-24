@@ -112,11 +112,11 @@ export function buildFloorballPreviewMd(opts: {
 
   const gkH = m.goalkeepers.home
   const gkA = m.goalkeepers.away
-  const gkLines = m.phase === 'upcoming' || (gkH.saves === 0 && gkA.saves === 0 && gkH.savePercentage === '–')
+  const gkLines = m.phase === 'upcoming' || (gkH.saves == null && gkA.saves == null && gkH.goalsConceded === 0 && gkA.goalsConceded === 0)
     ? ['_ei torjuntoja_']
     : [
-        `- ${m.homeTeamName}: ${gkH.goalieName} · ${gkH.saves} torj · päästetyt ${gkH.goalsConceded} · T% ${gkH.savePercentage}`,
-        `- ${m.awayTeamName}: ${gkA.goalieName} · ${gkA.saves} torj · päästetyt ${gkA.goalsConceded} · T% ${gkA.savePercentage}`,
+        `- ${m.homeTeamName}: ${gkH.goalieName} · ${gkH.saves ?? '– (ei kirjattu)'} torj · päästetyt ${gkH.goalsConceded}`,
+        `- ${m.awayTeamName}: ${gkA.goalieName} · ${gkA.saves ?? '– (ei kirjattu)'} torj · päästetyt ${gkA.goalsConceded}`,
       ]
 
   return [

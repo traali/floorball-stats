@@ -51,11 +51,20 @@ export function buildTimeline(m: Raw): TimelinePeriod[] {
     } else if (e.code === 'mvvaihto') {
       push(p, { kind: 'goalie', id, time, side: side(e, m), player: who(e.player_name, e.shirt_number), note: s(e.description) || null })
     } else if (/^jakso/.test(s(e.code))) {
-      push(p, { kind: 'marker', id, time, label: s(e.code_fi) || s(e.code) })
+      const code = s(e.code)
+      if (code === 'jaksoloppui') {
+        // TASO stamps the end as e.g. '15+44:59' (bogus clock) → plain marker without a time.
+        push(p, { kind: 'marker', id, time: '', label: 'Erä päättyi' })
+      } else if (code === 'jaksovaihtui') {
+        // TASO often sends this twice; show it at most once per period.
+        if (!(byPeriod.get(p) ?? []).some((x) => x.kind === 'marker' && x.label === 'Jakso vaihtui')) push(p, { kind: 'marker', id, time, label: 'Jakso vaihtui' })
+      } else {
+        push(p, { kind: 'marker', id, time, label: s(e.code_fi) || code })
+      }
     }
     // vaihto, syotto (paired), paastetty (paired), yhteyspalasi, kelloseis: not shown on their own
   }
-  const rank = (it: TimelineItem) => (it.kind === 'marker' ? (/loppui/i.test(it.label) ? 2 : -1) : 0)
+  const rank = (it: TimelineItem) => (it.kind === 'marker' ? (/loppui|päättyi/i.test(it.label) ? 2 : -1) : 0)
   const secs = (t: string) => { const m = /^(\d+):(\d+)$/.exec(t); return m ? Number(m[1]) * 60 + Number(m[2]) : 0 }
   const ordered = (items: TimelineItem[]) => items.map((it, i) => ({ it, i })).sort((a, b) => rank(a.it) - rank(b.it) || secs(a.it.time) - secs(b.it.time) || a.i - b.i).map((x) => x.it)
   return [...byPeriod.entries()].sort((a, b) => a[0] - b[0]).map(([period, items]) => ({ period, label: periodLabel(period), items: ordered(items) }))

@@ -13,3 +13,12 @@ body {
   color: #F8FAFC;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
+
+/* Gentle "content changed" cue under the match tab bar (replaces the long scroll jump). */
+@keyframes tab-flash {
+  0% { background: #6FFFE9; opacity: 1; transform: scaleX(0.2); }
+  40% { opacity: 1; transform: scaleX(1); }
+  100% { background: #6FFFE9; opacity: 0; transform: scaleX(1); }
+}
+.tab-flash { animation: tab-flash 1.2s ease-out forwards; transform-origin: left; }
+@media (prefers-reduced-motion: reduce) { .tab-flash { animation: none; opacity: 0; } }
