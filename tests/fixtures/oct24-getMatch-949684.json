@@ -1,1 +1,326 @@
-{"call": {"status": "ok", "method": "getMatch"}, "match": {"match_id": "949684", "date": "2026-10-24", "time": "15:00:00", "status": "Live", "team_A_id": "25301", "team_A_name": "Westend Indians Yellow", "team_B_id": "32454", "team_B_name": "SB Vantaa Valkoinen", "fs_A": "0", "fs_B": "3", "live_A": "0", "live_B": "3", "live_period": "1", "live_time": "00:07:53", "category_name": "U14 Pojat VALK B ES", "competition_id": "sb2026es", "category_id": "625", "group_id": "1", "venue_name": "AC Ruskeasuo kenttä 3", "lineups": [{"player_id": "100718", "first_name": "Viljami", "last_name": "Ahola", "player_name": "Ahola Viljami", "shirt_number": "7", "team_id": "25301", "team": null}, {"player_id": "33591", "first_name": "Konsta", "last_name": "Shemeikka", "player_name": "Shemeikka Konsta", "shirt_number": "9", "team_id": "25301", "team": null}, {"player_id": "115834", "first_name": "Joonatan", "last_name": "Hirsto", "player_name": "Hirsto Joonatan", "shirt_number": "15", "team_id": "25301", "team": null}, {"player_id": "124262", "first_name": "Paavo", "last_name": "Heikkanen", "player_name": "Heikkanen Paavo", "shirt_number": "20", "team_id": "25301", "team": null}, {"player_id": "110398", "first_name": "Leo", "last_name": "Särkkä", "player_name": "Särkkä Leo", "shirt_number": "25", "team_id": "25301", "team": null}, {"player_id": "124775", "first_name": "Iaroslav", "last_name": "Vagaitsev", "player_name": "Vagaitsev Iaroslav", "shirt_number": "26", "team_id": "25301", "team": null}, {"player_id": "124382", "first_name": "Lenni", "last_name": "Marjamäki", "player_name": "Marjamäki Lenni", "shirt_number": "30", "team_id": "25301", "team": null}, {"player_id": "138925", "first_name": "Romeo", "last_name": "Lencioni", "player_name": "Lencioni Romeo", "shirt_number": "37", "team_id": "25301", "team": null}, {"player_id": "39186", "first_name": "Elias", "last_name": "Haukkamäki", "player_name": "Haukkamäki Elias", "shirt_number": "39", "team_id": "25301", "team": null}, {"player_id": "119805", "first_name": "Simo", "last_name": "Oinonen", "player_name": "Oinonen Simo", "shirt_number": "55", "team_id": "25301", "team": null}, {"player_id": "105406", "first_name": "Justus", "last_name": "Voutilainen", "player_name": "Voutilainen Justus", "shirt_number": "64", "team_id": "25301", "team": null}, {"player_id": "147899", "first_name": "Ossi", "last_name": "Häkkinen", "player_name": "Häkkinen Ossi", "shirt_number": "87", "team_id": "25301", "team": null}, {"player_id": "43328", "first_name": "Eliot", "last_name": "Seppä", "player_name": "Seppä Eliot", "shirt_number": "1", "team_id": "32454", "team": null}, {"player_id": "26085", "first_name": "Leo", "last_name": "Poikselkä", "player_name": "Poikselkä Leo", "shirt_number": "4", "team_id": "32454", "team": null}, {"player_id": "102541", "first_name": "Sander", "last_name": "Lenbaum", "player_name": "Lenbaum Sander", "shirt_number": "10", "team_id": "32454", "team": null}, {"player_id": "107881", "first_name": "Mila", "last_name": "Piirainen", "player_name": "Piirainen Mila", "shirt_number": "11", "team_id": "32454", "team": null}, {"player_id": "26074", "first_name": "Jussi", "last_name": "Suokas", "player_name": "Suokas Jussi", "shirt_number": "14", "team_id": "32454", "team": null}, {"player_id": "22073", "first_name": "Aava", "last_name": "Gräsbeck", "player_name": "Gräsbeck Aava", "shirt_number": "16", "team_id": "32454", "team": null}, {"player_id": "55582", "first_name": "Emil", "last_name": "Wilén", "player_name": "Wilén Emil", "shirt_number": "20", "team_id": "32454", "team": null}, {"player_id": "54664", "first_name": "Voitto", "last_name": "Meskanen", "player_name": "Meskanen Voitto", "shirt_number": "24", "team_id": "32454", "team": null}, {"player_id": "23809", "first_name": "Noel", "last_name": "Vakkila", "player_name": "Vakkila Noel", "shirt_number": "25", "team_id": "32454", "team": null}, {"player_id": "104610", "first_name": "Albert", "last_name": "Li", "player_name": "Li Albert", "shirt_number": "37", "team_id": "32454", "team": null}, {"player_id": "26224", "first_name": "Veerti", "last_name": "Suhonen", "player_name": "Suhonen Veerti", "shirt_number": "38", "team_id": "32454", "team": null}, {"player_id": "140409", "first_name": "Eetu", "last_name": "Pelkonen", "player_name": "Pelkonen Eetu", "shirt_number": "48", "team_id": "32454", "team": null}, {"player_id": "46599", "first_name": "Joona", "last_name": "Tamminen", "player_name": "Tamminen Joona", "shirt_number": "57", "team_id": "32454", "team": null}, {"player_id": "104415", "first_name": "Juho", "last_name": "Laukkanen", "player_name": "Laukkanen Juho", "shirt_number": "27", "team_id": "32454", "team": null}, {"player_id": "51701", "first_name": "Max", "last_name": "Kinnula", "player_name": "Kinnula Max", "shirt_number": "96", "team_id": "32454", "team": null}]}}
+{
+"call": {
+"status": "ok",
+"method": "getMatch"
+},
+"match": {
+"match_id": "949684",
+"date": "2026-10-24",
+"time": "15:00:00",
+"status": "Live",
+"team_A_id": "25301",
+"team_A_name": "Westend Indians Yellow",
+"team_B_id": "32454",
+"team_B_name": "SB Vantaa Valkoinen",
+"fs_A": "0",
+"fs_B": "3",
+"live_A": "0",
+"live_B": "3",
+"live_period": "1",
+"live_time": "00:07:53",
+"category_name": "U14 Pojat VALK B ES",
+"competition_id": "sb2026es",
+"category_id": "625",
+"group_id": "1",
+"venue_name": "AC Ruskeasuo kenttä 3",
+"lineups": [
+{
+"player_id": "100718",
+"first_name": "Viljami",
+"last_name": "Ahola",
+"player_name": "Ahola Viljami",
+"shirt_number": "7",
+"team_id": "25301",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "33591",
+"first_name": "Konsta",
+"last_name": "Shemeikka",
+"player_name": "Shemeikka Konsta",
+"shirt_number": "9",
+"team_id": "25301",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "115834",
+"first_name": "Joonatan",
+"last_name": "Hirsto",
+"player_name": "Hirsto Joonatan",
+"shirt_number": "15",
+"team_id": "25301",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "124262",
+"first_name": "Paavo",
+"last_name": "Heikkanen",
+"player_name": "Heikkanen Paavo",
+"shirt_number": "20",
+"team_id": "25301",
+"team": null,
+"birthyear": "2014",
+"overage": "0"
+},
+{
+"player_id": "110398",
+"first_name": "Leo",
+"last_name": "Särkkä",
+"player_name": "Särkkä Leo",
+"shirt_number": "25",
+"team_id": "25301",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "124775",
+"first_name": "Iaroslav",
+"last_name": "Vagaitsev",
+"player_name": "Vagaitsev Iaroslav",
+"shirt_number": "26",
+"team_id": "25301",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "124382",
+"first_name": "Lenni",
+"last_name": "Marjamäki",
+"player_name": "Marjamäki Lenni",
+"shirt_number": "30",
+"team_id": "25301",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "138925",
+"first_name": "Romeo",
+"last_name": "Lencioni",
+"player_name": "Lencioni Romeo",
+"shirt_number": "37",
+"team_id": "25301",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "39186",
+"first_name": "Elias",
+"last_name": "Haukkamäki",
+"player_name": "Haukkamäki Elias",
+"shirt_number": "39",
+"team_id": "25301",
+"team": null,
+"birthyear": "2014",
+"overage": "0"
+},
+{
+"player_id": "119805",
+"first_name": "Simo",
+"last_name": "Oinonen",
+"player_name": "Oinonen Simo",
+"shirt_number": "55",
+"team_id": "25301",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "105406",
+"first_name": "Justus",
+"last_name": "Voutilainen",
+"player_name": "Voutilainen Justus",
+"shirt_number": "64",
+"team_id": "25301",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "147899",
+"first_name": "Ossi",
+"last_name": "Häkkinen",
+"player_name": "Häkkinen Ossi",
+"shirt_number": "87",
+"team_id": "25301",
+"team": null,
+"birthyear": "2012",
+"overage": "0"
+},
+{
+"player_id": "43328",
+"first_name": "Eliot",
+"last_name": "Seppä",
+"player_name": "Seppä Eliot",
+"shirt_number": "1",
+"team_id": "32454",
+"team": null,
+"birthyear": "2012",
+"overage": "0"
+},
+{
+"player_id": "26085",
+"first_name": "Leo",
+"last_name": "Poikselkä",
+"player_name": "Poikselkä Leo",
+"shirt_number": "4",
+"team_id": "32454",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "102541",
+"first_name": "Sander",
+"last_name": "Lenbaum",
+"player_name": "Lenbaum Sander",
+"shirt_number": "10",
+"team_id": "32454",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "107881",
+"first_name": "Mila",
+"last_name": "Piirainen",
+"player_name": "Piirainen Mila",
+"shirt_number": "11",
+"team_id": "32454",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "26074",
+"first_name": "Jussi",
+"last_name": "Suokas",
+"player_name": "Suokas Jussi",
+"shirt_number": "14",
+"team_id": "32454",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "22073",
+"first_name": "Aava",
+"last_name": "Gräsbeck",
+"player_name": "Gräsbeck Aava",
+"shirt_number": "16",
+"team_id": "32454",
+"team": null,
+"birthyear": "2012",
+"overage": "0"
+},
+{
+"player_id": "55582",
+"first_name": "Emil",
+"last_name": "Wilén",
+"player_name": "Wilén Emil",
+"shirt_number": "20",
+"team_id": "32454",
+"team": null,
+"birthyear": "2012",
+"overage": "1"
+},
+{
+"player_id": "54664",
+"first_name": "Voitto",
+"last_name": "Meskanen",
+"player_name": "Meskanen Voitto",
+"shirt_number": "24",
+"team_id": "32454",
+"team": null,
+"birthyear": "2012",
+"overage": "1"
+},
+{
+"player_id": "23809",
+"first_name": "Noel",
+"last_name": "Vakkila",
+"player_name": "Vakkila Noel",
+"shirt_number": "25",
+"team_id": "32454",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "104610",
+"first_name": "Albert",
+"last_name": "Li",
+"player_name": "Li Albert",
+"shirt_number": "37",
+"team_id": "32454",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "26224",
+"first_name": "Veerti",
+"last_name": "Suhonen",
+"player_name": "Suhonen Veerti",
+"shirt_number": "38",
+"team_id": "32454",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "140409",
+"first_name": "Eetu",
+"last_name": "Pelkonen",
+"player_name": "Pelkonen Eetu",
+"shirt_number": "48",
+"team_id": "32454",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "46599",
+"first_name": "Joona",
+"last_name": "Tamminen",
+"player_name": "Tamminen Joona",
+"shirt_number": "57",
+"team_id": "32454",
+"team": null,
+"birthyear": "2012",
+"overage": "1"
+},
+{
+"player_id": "104415",
+"first_name": "Juho",
+"last_name": "Laukkanen",
+"player_name": "Laukkanen Juho",
+"shirt_number": "27",
+"team_id": "32454",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+},
+{
+"player_id": "51701",
+"first_name": "Max",
+"last_name": "Kinnula",
+"player_name": "Kinnula Max",
+"shirt_number": "96",
+"team_id": "32454",
+"team": null,
+"birthyear": "2013",
+"overage": "0"
+}
+]
+}
+}

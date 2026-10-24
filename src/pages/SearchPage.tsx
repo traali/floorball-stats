@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Calendar, Heart, Layers, Search, Shield, Trophy, User, Users } from 'lucide-react'
-import { getTasoFailure, searchSalibandy, type SearchResult } from '../services/salibandyApi'
+import { enrichPlayerShirts, getTasoFailure, searchSalibandy, type SearchResult } from '../services/salibandyApi'
+import { withShirt } from '../utils/shirt'
 import type { DiscoveryHit } from '../types/salibandy'
 import { favoriteClubIds, useFavorites, type FavKind } from '../hooks/useFavorites'
 import { readRecentSearches, rememberSearch } from '../utils/recentSearches'
@@ -34,6 +35,9 @@ export function SearchPage() {
         if (cancelled) return
         setResult(res)
         if (res.hits.length > 0) setRecent(rememberSearch(q))
+        void enrichPlayerShirts(res.hits).then((hits) => {
+          if (!cancelled && hits !== res.hits) setResult({ ...res, hits })
+        })
       })
       .catch(() => {
         if (!cancelled) {
@@ -74,7 +78,7 @@ export function SearchPage() {
     const kind: FavKind = h.kind
     return {
       active: isFavorite(kind, h.id),
-      onToggle: () => toggle({ kind, id: h.id, name: h.title, subtitle: h.subtitle, clubId: h.clubId }),
+      onToggle: () => toggle({ kind, id: h.id, name: h.title, subtitle: h.subtitle, clubId: h.clubId, shirtNumber: h.shirtNumber }),
     }
   }
 
@@ -193,7 +197,7 @@ function HitGroup({
             className="flex items-center gap-2 rounded-xl border border-slate-800 bg-[#1C2541] hover:border-[#5BC0BE]/50"
           >
             <button type="button" onClick={() => onOpen(h.id)} className="grow min-w-0 text-left px-3 py-3">
-              <p className="text-sm font-semibold text-white truncate">{h.title}</p>
+              <p className="text-sm font-semibold text-white truncate">{h.kind === 'player' ? withShirt(h.title, h.shirtNumber) : h.title}</p>
               <p className="text-[11px] text-slate-400 truncate">{h.subtitle}</p>
             </button>
             {f ? (

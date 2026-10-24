@@ -1,3 +1,4 @@
+import { withShirt } from '../utils/shirt'
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { SalibandyGoalEvent, SalibandyPenaltyEvent } from '../types/salibandy'
@@ -83,7 +84,7 @@ export const TimelineEventsList: React.FC<TimelineEventsListProps> = ({ goals, p
                       {g.assistName && (
                         <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                           <User className="w-3 h-3 text-slate-500" />
-                          Syöttäjä: {g.assistPlayerId ? <PlayerBtn name={g.assistName || ''} id={g.assistPlayerId} /> : g.assistName}
+                          Syöttäjä: {g.assistPlayerId ? <PlayerBtn name={g.assistName || ''} id={g.assistPlayerId} shirt={g.assistShirtNumber} /> : withShirt(g.assistName, g.assistShirtNumber)}
                         </p>
                       )}
                     </div>

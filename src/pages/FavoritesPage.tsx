@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useFavorites } from '../hooks/useFavorites'
+import { withShirt } from '../utils/shirt'
 
 export function FavoritesPage() {
   const { favorites, toggle } = useFavorites()
@@ -21,7 +22,7 @@ export function FavoritesPage() {
           {favorites.map((f) => (
             <div key={`${f.kind}-${f.id}`} className="flex items-center justify-between rounded-xl border border-slate-800 bg-[#1C2541] px-3 py-3">
               <button type="button" onClick={() => open(f.kind, f.id)} className="text-left min-w-0">
-                <p className="text-sm font-semibold truncate">{f.name}</p>
+                <p className="text-sm font-semibold truncate">{f.kind === 'player' ? withShirt(f.name, f.shirtNumber) : f.name}</p>
                 <p className="text-[11px] text-slate-400">{f.subtitle || f.kind}</p>
               </button>
               <button type="button" onClick={() => toggle(f)} className="text-[11px] font-semibold text-rose-400">

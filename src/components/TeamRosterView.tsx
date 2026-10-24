@@ -2,6 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { SalibandyRosterPlayer } from '../types/salibandy'
 import { Users, User, Star } from 'lucide-react'
+import { OverageBadge } from './PlayerFlags'
 
 interface TeamRosterViewProps {
   roster: SalibandyRosterPlayer[]
@@ -47,6 +48,7 @@ export const TeamRosterView: React.FC<TeamRosterViewProps> = ({ roster, teamName
               <div className="flex items-center justify-between">
                 <span className="font-bold text-xs text-slate-200 truncate">
                   {player.shirtNumber ? `#${player.shirtNumber} ` : ''}{player.fullName}
+                  <OverageBadge show={player.overage} />
                 </span>
                 {player.isCaptain && (
                   <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">

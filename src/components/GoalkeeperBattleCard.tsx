@@ -1,3 +1,4 @@
+import { withShirt } from '../utils/shirt'
 import React from 'react'
 import type { SalibandyGoalkeeperStats } from '../types/salibandy'
 import { Shield, Award } from 'lucide-react'
@@ -27,7 +28,7 @@ export const GoalkeeperBattleCard: React.FC<GoalkeeperBattleCardProps> = ({
         {/* Home Goalie */}
         <div className="bg-[#0B132B]/70 p-4 rounded-xl border border-slate-800 flex flex-col items-center text-center">
           <span className="text-[11px] font-semibold text-slate-400 truncate max-w-[120px]">{homeTeamName}</span>
-          <div className="font-bold text-sm text-slate-200 mt-1">{goalkeepers.home.goalieName}</div>
+          <div className="font-bold text-sm text-slate-200 mt-1">{withShirt(goalkeepers.home.goalieName, goalkeepers.home.shirtNumber)}</div>
           <div className="mt-3 bg-[#1C2541] px-3 py-1.5 rounded-lg border border-slate-700 w-full flex items-center justify-around text-xs">
             <div>
               <span className="text-[10px] text-slate-400 block">Torjunnat</span>
@@ -47,7 +48,7 @@ export const GoalkeeperBattleCard: React.FC<GoalkeeperBattleCardProps> = ({
         {/* Away Goalie */}
         <div className="bg-[#0B132B]/70 p-4 rounded-xl border border-slate-800 flex flex-col items-center text-center">
           <span className="text-[11px] font-semibold text-[#5BC0BE] truncate max-w-[120px]">{awayTeamName}</span>
-          <div className="font-bold text-sm text-slate-200 mt-1">{goalkeepers.away.goalieName}</div>
+          <div className="font-bold text-sm text-slate-200 mt-1">{withShirt(goalkeepers.away.goalieName, goalkeepers.away.shirtNumber)}</div>
           <div className="mt-3 bg-[#1C2541] px-3 py-1.5 rounded-lg border border-slate-700 w-full flex items-center justify-around text-xs">
             <div>
               <span className="text-[10px] text-slate-400 block">Torjunnat</span>

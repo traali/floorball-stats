@@ -1,3 +1,4 @@
+import { withShirt } from '../utils/shirt'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Calendar, Heart, Search, Shield, User } from 'lucide-react'
@@ -125,7 +126,7 @@ export function Home() {
                   className="px-3 py-1.5 rounded-full border border-rose-400/30 bg-[#1C2541] text-[11px] font-semibold text-rose-200 hover:border-rose-300 flex items-center gap-1"
                 >
                   <Icon className="w-3 h-3" />
-                  {f.name}
+                  {f.kind === 'player' ? withShirt(f.name, f.shirtNumber) : f.name}
                 </button>
               )
             })}

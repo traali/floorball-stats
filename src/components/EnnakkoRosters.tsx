@@ -3,6 +3,8 @@ import { Users, Star } from 'lucide-react'
 import type { SalibandyPlayerProfile, SalibandyRosterPlayer, SalibandyTeamFixture } from '../types/salibandy'
 import { previousGamesForPlayer } from '../utils/playerForm'
 import { GameBoxes } from './GameBoxes'
+import { OverageBadge, HigherLevelChips } from './PlayerFlags'
+import type { HigherLevel } from '../utils/playerLevels'
 
 function Card({
   p,
@@ -11,7 +13,9 @@ function Card({
   year,
   asOfDate,
   excludeMatchId,
+  levels,
 }: {
+  levels?: HigherLevel[]
   p: SalibandyRosterPlayer
   profile?: SalibandyPlayerProfile
   teamFixtures: SalibandyTeamFixture[]
@@ -42,9 +46,11 @@ function Card({
           {p.shirtNumber ? <span className="text-[#6FFFE9] font-mono mr-1">#{p.shirtNumber}</span> : null}
           {p.fullName || 'Pelaaja'}
           {p.isCaptain ? <Star className="inline w-3 h-3 ml-1 text-amber-400" /> : null}
+          <OverageBadge show={p.overage} />
         </span>
         <span className="text-[11px] text-slate-500 shrink-0">{p.birthYear || ''}</span>
       </div>
+      <HigherLevelChips levels={levels} name={p.fullName} shirt={p.shirtNumber} />
       <div className="mt-1.5 grid grid-cols-3 gap-1 text-center">
         <div className="rounded-lg bg-[#1C2541] py-1">
           <div className="text-[9px] uppercase text-slate-500">G</div>
@@ -91,7 +97,9 @@ function Column({
   year,
   asOfDate,
   excludeMatchId,
+  levels = {},
 }: {
+  levels?: Record<string, HigherLevel[]>
   teamName: string
   roster: SalibandyRosterPlayer[]
   profiles: Record<string, SalibandyPlayerProfile>
@@ -123,6 +131,7 @@ function Column({
               year={year}
               asOfDate={asOfDate}
               excludeMatchId={excludeMatchId}
+              levels={levels[p.playerId]}
             />
           ))}
         </div>
@@ -142,7 +151,9 @@ export function EnnakkoRosters({
   awayFixtures = [],
   matchDate,
   matchId,
+  levels = {},
 }: {
+  levels?: Record<string, HigherLevel[]>
   homeName: string
   awayName: string
   homeRoster: SalibandyRosterPlayer[]
@@ -171,6 +182,7 @@ export function EnnakkoRosters({
           year={year}
           asOfDate={matchDate}
           excludeMatchId={matchId}
+          levels={levels}
         />
         <Column
           teamName={awayName}
@@ -180,6 +192,7 @@ export function EnnakkoRosters({
           year={year}
           asOfDate={matchDate}
           excludeMatchId={matchId}
+          levels={levels}
         />
       </div>
     </section>

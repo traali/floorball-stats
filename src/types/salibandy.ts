@@ -14,6 +14,7 @@ export interface SalibandyGoalEvent {
   scorerPlayerId?: string
   assistName?: string
   assistPlayerId?: string
+  assistShirtNumber?: string
   team: 'home' | 'away'
   scoreHome: number
   scoreAway: number
@@ -60,12 +61,14 @@ export interface SalibandyPeriodScore {
 export interface SalibandyGoalkeeperStats {
   home: {
     goalieName: string
+    shirtNumber?: string
     saves: number
     goalsConceded: number
     savePercentage: string
   }
   away: {
     goalieName: string
+    shirtNumber?: string
     saves: number
     goalsConceded: number
     savePercentage: string
@@ -141,6 +144,8 @@ export interface SalibandyRosterPlayer {
   penaltiesMin: number
   /** False when TASO sent no goal/assist numbers for this player (e.g. getTeam rosters). */
   statsSent?: boolean
+  /** TASO's own overage flag (lineup or registration). Never inferred from birth year. */
+  overage?: boolean
 }
 
 export interface SalibandyTeamFixture {
@@ -359,6 +364,9 @@ export interface SalibandyPlayerMatch {
   shots?: number
   saves?: number
   venueName?: string
+  teamName?: string
+  /** TASO not_participated = 1: in the history, but did not play. */
+  notParticipated?: boolean
   /** False when TASO sent player_goals/assists/points as "" (no stats kept). */
   statsSent?: boolean
 }
@@ -390,6 +398,8 @@ export interface DiscoveryHit {
   /** Player hits found in a live game's lineup. */
   teamId?: string
   matchId?: string
+  /** Shirt number, when TASO sent one. */
+  shirtNumber?: string
 }
 
 export interface FavoriteTeam {
