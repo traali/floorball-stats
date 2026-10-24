@@ -32,7 +32,7 @@ beforeEach(() => {
   routes = {}
   globalThis.fetch = async (url) => {
     const u = new URL(String(url))
-    const key = u.pathname.split('/').pop() + '?' + [...u.searchParams].filter(([k]) => k !== '_cb').map(([k, v]) => `${k}=${v}`).join('&')
+    const key = u.pathname.split('/').pop() + '?' + [...u.searchParams].filter(([k]) => k !== '_cb' && k !== 'hash').map(([k, v]) => `${k}=${v}`).join('&')
     const body = routes[key]
     if (!body) return new Response(JSON.stringify({ call: { status: 'error', error: 'not mocked ' + key } }), { status: 200 })
     return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })

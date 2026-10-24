@@ -47,7 +47,7 @@ function fakeTaso(url) {
   const u = new URL(url)
   const method = u.pathname.split('/').pop()
   const p = u.searchParams
-  calls.push(method + (p.toString() ? `?${p.toString().replace(/&?_cb=\d+/, '')}` : ''))
+  calls.push(method + (p.toString() ? `?${p.toString().replace(/&?_cb=\d+/, '').replace(/&?hash=[0-9a-f]+/, '').replace(/^&/, '')}` : ''))
   switch (method) {
     case 'getClubs':
       return ok(method, { clubs: CLUBS })
@@ -138,10 +138,9 @@ describe('search shows only what the TASO API returned', () => {
     assert.deepEqual(viaFavourite.hits.filter((h) => h.kind === 'player').map((h) => h.id), ['19202'])
   })
 
-  it('shows nothing when the API is down (no fallback data)', async () => {
+  it('API down is an error, never an empty result (no fallback data)', async () => {
     down = true
-    const { hits } = await searchSalibandy('Westend')
-    assert.deepEqual(hits, [])
+    await assert.rejects(searchSalibandy('Westend'), /TASO unavailable/)
   })
 
   it('keeps the team index in localStorage for the next visit', async () => {

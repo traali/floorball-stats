@@ -387,6 +387,9 @@ export interface DiscoveryHit {
   crest?: string
   /** Club behind the hit, when the API told us. Used for player search via favourites. */
   clubId?: string
+  /** Player hits found in a live game's lineup. */
+  teamId?: string
+  matchId?: string
 }
 
 export interface FavoriteTeam {

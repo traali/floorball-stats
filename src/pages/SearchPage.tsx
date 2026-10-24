@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Calendar, Heart, Layers, Search, Shield, Trophy, User, Users } from 'lucide-react'
-import { searchSalibandy, type SearchResult } from '../services/salibandyApi'
+import { getTasoFailure, searchSalibandy, type SearchResult } from '../services/salibandyApi'
 import type { DiscoveryHit } from '../types/salibandy'
 import { favoriteClubIds, useFavorites, type FavKind } from '../hooks/useFavorites'
 import { readRecentSearches, rememberSearch } from '../utils/recentSearches'
@@ -127,7 +127,9 @@ export function SearchPage() {
       ) : !q ? (
         <p className="text-sm text-slate-500">Aloita hakemalla joukkuetta, seuraa tai pelaajaa.</p>
       ) : failed ? (
-        <p className="text-sm text-rose-300">Tulospalvelu ei vastannut. Yritä hetken päästä uudelleen.</p>
+        <p className="text-sm text-rose-300" data-testid="search-error">
+          Tulospalvelu ei vastannut{getTasoFailure()?.body ? ` («${getTasoFailure()?.body.slice(0, 40)}»)` : ''}. Haku ei siis ole tyhjä vaan epäonnistui — yritä hetken päästä uudelleen.
+        </p>
       ) : (
         <div className="space-y-5">
           {hits.length === 0 ? (
