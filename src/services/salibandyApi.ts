@@ -1,3 +1,4 @@
+import type { HistoryRow } from '../utils/playerLevels.ts'
 import { helsinkiDateISO } from '../utils/matchContext.ts'
 /**
  * SSBL Salibandy / Torneopal REST API Client
@@ -553,7 +554,19 @@ export function mapRosterPlayer(p: Record<string, unknown>): SalibandyRosterPlay
     points: pickNum(p, ['points', 'p', 'tehopisteet'], goals + assists),
     penaltiesMin: pickNum(p, ['penalties_min', 'pim', 'rm']) || pickNum(p, ['suspensions', 'warnings']) * 2,
     statsSent,
+    overage: flagSet(p.overage),
   }
+}
+
+function flagSet(v: unknown): boolean {
+  return v === true || v === 1 || v === '1'
+}
+
+/** Keep TASO's overage flag when a getTeam roster replaces the match lineup. */
+export function mergeOverage(roster: SalibandyRosterPlayer[], lineup: SalibandyRosterPlayer[]): SalibandyRosterPlayer[] {
+  const flagged = new Set(lineup.filter((p) => p.overage).map((p) => p.playerId))
+  if (!flagged.size) return roster
+  return roster.map((p) => (flagged.has(p.playerId) ? { ...p, overage: true } : p))
 }
 
 function asPlayerList(v: unknown): unknown[] {
@@ -1127,6 +1140,8 @@ export function mapPlayerMatch(m: any): SalibandyPlayerMatch {
     shots,
     saves,
     venueName: m.venue_name ? str(m.venue_name) : undefined,
+    teamName: m.team_name ? str(m.team_name) : undefined,
+    notParticipated: flagSet(m.not_participated),
     statsSent,
   }
 }
@@ -1613,4 +1628,59 @@ export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDat
 
 export async function searchDiscovery(query: string, opts?: SearchOptions): Promise<DiscoveryHit[]> {
   return (await searchSalibandy(query, opts)).hits
+}
+
+// ---------------------------------------------------------------------------
+// Player histories for the higher-level chip: slim rows, ~12 h in localStorage.
+// ---------------------------------------------------------------------------
+
+export const PLAYER_HISTORY_KEY = 'floorball.playerHistory.v1'
+const PLAYER_HISTORY_TTL_MS = 12 * 60 * 60 * 1000
+type SlimHistory = [string, string, string, string, 0 | 1, number | null, 0 | 1]
+
+export function historyRowsFromPlayer(p: SalibandyPlayerProfile): HistoryRow[] {
+  return p.matches.map((m) => ({
+    seasonId: m.seasonId || '',
+    category: m.categoryName,
+    teamName: m.teamName || '',
+    teamId: m.teamId || '',
+    notParticipated: Boolean(m.notParticipated),
+    goals: m.statsSent === false ? null : m.goals,
+    played: !m.status || /played|finished|pelattu/i.test(m.status),
+  }))
+}
+
+function readHistoryStore(): Record<string, { at: number; rows: SlimHistory[] }> {
+  try {
+    const raw = localStore()?.getItem(PLAYER_HISTORY_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+export async function fetchPlayerHistory(playerId: string, now = Date.now()): Promise<HistoryRow[] | null> {
+  const store = readHistoryStore()
+  const hit = store[playerId]
+  if (hit && now - hit.at < PLAYER_HISTORY_TTL_MS && Array.isArray(hit.rows)) {
+    return hit.rows.map((r) => ({
+      seasonId: r[0], category: r[1], teamName: r[2], teamId: r[3],
+      notParticipated: r[4] === 1, goals: r[5], played: r[6] === 1,
+    }))
+  }
+  const p = await fetchSalibandyPlayer(playerId)
+  if (!p) return null
+  const rows = historyRowsFromPlayer(p)
+  const fresh = readHistoryStore()
+  for (const [k, v] of Object.entries(fresh)) if (now - v.at >= PLAYER_HISTORY_TTL_MS) delete fresh[k]
+  fresh[playerId] = {
+    at: now,
+    rows: rows.map((r) => [r.seasonId, r.category, r.teamName, r.teamId, r.notParticipated ? 1 : 0, r.goals, r.played ? 1 : 0]),
+  }
+  try {
+    localStore()?.setItem(PLAYER_HISTORY_KEY, JSON.stringify(fresh))
+  } catch {
+    /* quota: fine, we refetch next time */
+  }
+  return rows
 }

@@ -24,10 +24,12 @@ import { MatchFormAndHistory } from '../components/CommonOpponents'
 import { MatchPreviewExport } from '../components/MatchPreviewExport'
 import { EnnakkoRosters } from '../components/EnnakkoRosters'
 import { useRosterPlayerForms } from '../hooks/useRosterPlayerForms'
+import { useHigherLevels } from '../hooks/useHigherLevels'
 import {
   fetchSalibandyMatch,
   fetchSalibandyGroup,
   fetchSalibandyTeamRoster,
+  mergeOverage,
   fetchSalibandyTeamFixtures,
   mapGroupTeamsToStandings,
   computePlayerLeaders,
@@ -60,6 +62,11 @@ export function MatchPage() {
     ...homeRoster.map((p) => p.playerId),
     ...awayRoster.map((p) => p.playerId),
   ])
+  const levels = useHigherLevels(
+    [...homeRoster.map((p) => p.playerId), ...awayRoster.map((p) => p.playerId)],
+    match?.categoryName || '',
+    match?.date || '',
+  )
 
   useEffect(() => {
     async function loadMatch() {
@@ -81,8 +88,8 @@ export function MatchPage() {
           m.awayTeamId ? fetchSalibandyTeamFixtures(m.awayTeamId) : Promise.resolve([]),
         ])
         if (group) setStandings(mapGroupTeamsToStandings(group.teams, group.matches, group.standingsSent !== false))
-        if (home.length) setHomeRoster(home)
-        if (away.length) setAwayRoster(away)
+        if (home.length) setHomeRoster(mergeOverage(home, m.homeRoster || []))
+        if (away.length) setAwayRoster(mergeOverage(away, m.awayRoster || []))
         setHomeFx(hfx)
         setAwayFx(afx)
         const startTime = m.date ? `${m.date}T${(m.time || '00:00').padEnd(5, '0')}:00` : ''
@@ -305,6 +312,7 @@ export function MatchPage() {
             awayFixtures={awayFx}
             matchDate={match.date}
             matchId={match.matchId}
+          levels={levels}
           />
           <MatchFormAndHistory
             homeName={match.homeTeamName}
@@ -343,6 +351,7 @@ export function MatchPage() {
           awayFixtures={awayFx}
           matchDate={match.date}
           matchId={match.matchId}
+          levels={levels}
         />
       )}
 

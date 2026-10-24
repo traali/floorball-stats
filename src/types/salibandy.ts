@@ -141,6 +141,8 @@ export interface SalibandyRosterPlayer {
   penaltiesMin: number
   /** False when TASO sent no goal/assist numbers for this player (e.g. getTeam rosters). */
   statsSent?: boolean
+  /** TASO's own overage flag (lineup or registration). Never inferred from birth year. */
+  overage?: boolean
 }
 
 export interface SalibandyTeamFixture {
@@ -359,6 +361,9 @@ export interface SalibandyPlayerMatch {
   shots?: number
   saves?: number
   venueName?: string
+  teamName?: string
+  /** TASO not_participated = 1: in the history, but did not play. */
+  notParticipated?: boolean
   /** False when TASO sent player_goals/assists/points as "" (no stats kept). */
   statsSent?: boolean
 }

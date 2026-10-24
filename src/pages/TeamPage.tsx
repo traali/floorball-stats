@@ -1,3 +1,4 @@
+import { OverageBadge } from '../components/PlayerFlags'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -386,6 +387,7 @@ export function TeamPage() {
                       onClick={() => navigate(`/player/${p.playerId}`)}
                     >
                       {p.fullName}
+                      <OverageBadge show={p.overage} />
                       {p.isCaptain && (
                         <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
                           C

@@ -1,0 +1,254 @@
+{
+"match": {
+"match_id": "949686",
+"team_A_id": "25301",
+"team_B_id": "28976",
+"team_A_name": "Westend Indians Yellow",
+"team_B_name": "KorsKa Scorpions",
+"category_name": "U14 Pojat VALK B ES",
+"date": "2026-10-24",
+"status": "Fixture",
+"lineups": [
+{
+"player_id": "100718",
+"team_id": "25301",
+"first_name": "Viljami",
+"last_name": "Ahola",
+"shirt_number": "7",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "33591",
+"team_id": "25301",
+"first_name": "Konsta",
+"last_name": "Shemeikka",
+"shirt_number": "9",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "115834",
+"team_id": "25301",
+"first_name": "Joonatan",
+"last_name": "Hirsto",
+"shirt_number": "15",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "124262",
+"team_id": "25301",
+"first_name": "Paavo",
+"last_name": "Heikkanen",
+"shirt_number": "20",
+"birthyear": "2014",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "110398",
+"team_id": "25301",
+"first_name": "Leo",
+"last_name": "Särkkä",
+"shirt_number": "25",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "124775",
+"team_id": "25301",
+"first_name": "Iaroslav",
+"last_name": "Vagaitsev",
+"shirt_number": "26",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "124382",
+"team_id": "25301",
+"first_name": "Lenni",
+"last_name": "Marjamäki",
+"shirt_number": "30",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "138925",
+"team_id": "25301",
+"first_name": "Romeo",
+"last_name": "Lencioni",
+"shirt_number": "37",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "39186",
+"team_id": "25301",
+"first_name": "Elias",
+"last_name": "Haukkamäki",
+"shirt_number": "39",
+"birthyear": "2014",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "119805",
+"team_id": "25301",
+"first_name": "Simo",
+"last_name": "Oinonen",
+"shirt_number": "55",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "105406",
+"team_id": "25301",
+"first_name": "Justus",
+"last_name": "Voutilainen",
+"shirt_number": "64",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "147899",
+"team_id": "25301",
+"first_name": "Ossi",
+"last_name": "Häkkinen",
+"shirt_number": "87",
+"birthyear": "2012",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "47040",
+"team_id": "28976",
+"first_name": "Tio",
+"last_name": "Stenhammar",
+"shirt_number": "2",
+"birthyear": "2014",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "118294",
+"team_id": "28976",
+"first_name": "Eeli",
+"last_name": "Pöllänen",
+"shirt_number": "6",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "119809",
+"team_id": "28976",
+"first_name": "Maxi",
+"last_name": "Innanen",
+"shirt_number": "8",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "124517",
+"team_id": "28976",
+"first_name": "Valtteri",
+"last_name": "Liukko",
+"shirt_number": "9",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "135322",
+"team_id": "28976",
+"first_name": "Glen",
+"last_name": "Kalvik",
+"shirt_number": "11",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "27606",
+"team_id": "28976",
+"first_name": "Olavi",
+"last_name": "Juoperi",
+"shirt_number": "12",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "110641",
+"team_id": "28976",
+"first_name": "Casper",
+"last_name": "Haasia",
+"shirt_number": "16",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "47034",
+"team_id": "28976",
+"first_name": "Tex",
+"last_name": "Stenhammar",
+"shirt_number": "30",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "27603",
+"team_id": "28976",
+"first_name": "Pyry",
+"last_name": "Juoperi",
+"shirt_number": "42",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "23691",
+"team_id": "28976",
+"first_name": "Kalle",
+"last_name": "Räsänen",
+"shirt_number": "43",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "49228",
+"team_id": "28976",
+"first_name": "Miska",
+"last_name": "Tammisto",
+"shirt_number": "45",
+"birthyear": "2013",
+"overage": "0",
+"captain": ""
+},
+{
+"player_id": "30200",
+"team_id": "28976",
+"first_name": "Jooa",
+"last_name": "Kaura",
+"shirt_number": "63",
+"birthyear": "2013",
+"overage": "0",
+"captain": "C"
+}
+]
+}
+}
