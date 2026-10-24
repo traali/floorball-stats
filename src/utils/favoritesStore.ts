@@ -13,6 +13,8 @@ export interface FavoriteItem {
   subtitle?: string
   /** Club behind a team or player; lets search look through that club's players. */
   clubId?: string
+  /** Player's shirt number, when TASO sent one. */
+  shirtNumber?: string
 }
 
 export interface StorageLike {
@@ -69,6 +71,7 @@ export function parseFavorites(raw: string | null): FavoriteItem[] {
       name,
       ...(rec.subtitle ? { subtitle: String(rec.subtitle) } : {}),
       ...(clubId ? { clubId } : {}),
+      ...(kind === 'player' && rec.shirtNumber && /^\d{1,3}$/.test(String(rec.shirtNumber)) ? { shirtNumber: String(rec.shirtNumber) } : {}),
     })
   }
   return out.slice(0, MAX_FAVORITES)

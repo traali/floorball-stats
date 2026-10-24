@@ -50,7 +50,7 @@ function Card({
         </span>
         <span className="text-[11px] text-slate-500 shrink-0">{p.birthYear || ''}</span>
       </div>
-      <HigherLevelChips levels={levels} />
+      <HigherLevelChips levels={levels} name={p.fullName} shirt={p.shirtNumber} />
       <div className="mt-1.5 grid grid-cols-3 gap-1 text-center">
         <div className="rounded-lg bg-[#1C2541] py-1">
           <div className="text-[9px] uppercase text-slate-500">G</div>

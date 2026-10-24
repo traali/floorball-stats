@@ -14,6 +14,7 @@ export interface SalibandyGoalEvent {
   scorerPlayerId?: string
   assistName?: string
   assistPlayerId?: string
+  assistShirtNumber?: string
   team: 'home' | 'away'
   scoreHome: number
   scoreAway: number
@@ -60,12 +61,14 @@ export interface SalibandyPeriodScore {
 export interface SalibandyGoalkeeperStats {
   home: {
     goalieName: string
+    shirtNumber?: string
     saves: number
     goalsConceded: number
     savePercentage: string
   }
   away: {
     goalieName: string
+    shirtNumber?: string
     saves: number
     goalsConceded: number
     savePercentage: string
@@ -395,6 +398,8 @@ export interface DiscoveryHit {
   /** Player hits found in a live game's lineup. */
   teamId?: string
   matchId?: string
+  /** Shirt number, when TASO sent one. */
+  shirtNumber?: string
 }
 
 export interface FavoriteTeam {

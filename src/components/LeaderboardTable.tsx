@@ -1,3 +1,4 @@
+import { withShirt } from '../utils/shirt'
 import React from 'react'
 import type { SalibandyPlayerLeader } from '../types/salibandy'
 import { Award } from 'lucide-react'
@@ -39,7 +40,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({ leaders }) =
                 <tr key={`${player.playerName}-${player.teamName}`} className="hover:bg-slate-800/40 transition-colors">
                   <td className="py-2.5 px-3 font-medium text-slate-200 flex items-center gap-2">
                     <span className="font-mono text-slate-400">{idx + 1}.</span>
-                    <span>{player.playerName}</span>
+                    <span>{withShirt(player.playerName, player.shirtNumber)}</span>
                   </td>
                   <td className="py-2.5 px-3 text-slate-400 truncate max-w-[120px]">{player.teamName}</td>
                   <td className="py-2.5 px-2 text-center font-medium text-slate-300">{player.goals}</td>

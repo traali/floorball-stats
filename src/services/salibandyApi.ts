@@ -329,11 +329,13 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
 
     const goals: SalibandyGoalEvent[] = []
     const assistsMap = new Map<string, string>()
+    const assistInfo = new Map<string, { id?: string; shirt?: string }>()
 
     for (const ev of rawEvents) {
       if (ev.code === 'syotto') {
         const key = `${ev.time}_${ev.team}`
         assistsMap.set(key, ev.player_name || '')
+        assistInfo.set(key, { id: numericId(ev.player_id), shirt: ev.shirt_number ? String(ev.shirt_number) : undefined })
       }
     }
 
@@ -357,7 +359,8 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
           scorerShirtNumber: scorer.shirt || '',
           scorerPlayerId: scorer.playerId,
           assistName: scorer.kind === 'own' ? undefined : assistsMap.get(key) || undefined,
-          assistPlayerId: undefined,
+          assistPlayerId: scorer.kind === 'own' ? undefined : assistInfo.get(key)?.id,
+          assistShirtNumber: scorer.kind === 'own' ? undefined : assistInfo.get(key)?.shirt,
           team: ev.team === 'A' ? 'home' : 'away',
           scoreHome: Number(ev.s_A || 0),
           scoreAway: Number(ev.s_B || 0),
@@ -393,6 +396,8 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
     let homeSaves = 0
     let awaySaves = 0
     let homeGoalieName = 'Maalivahti'
+    let homeGoalieShirt = ''
+    let awayGoalieShirt = ''
     let awayGoalieName = 'Maalivahti'
 
     for (const ev of rawEvents) {
@@ -400,10 +405,16 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
         const isHome = ev.team === 'A'
         if (isHome) {
           homeSaves++
-          if (ev.player_name) homeGoalieName = ev.player_name
+          if (ev.player_name) {
+            homeGoalieName = ev.player_name
+            homeGoalieShirt = String(ev.shirt_number || '')
+          }
         } else {
           awaySaves++
-          if (ev.player_name) awayGoalieName = ev.player_name
+          if (ev.player_name) {
+            awayGoalieName = ev.player_name
+            awayGoalieShirt = String(ev.shirt_number || '')
+          }
         }
         saves.push({
           eventId: String(ev.event_id || Math.random()),
@@ -497,12 +508,14 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
       goalkeepers: {
         home: {
           goalieName: homeGoalieName,
+          shirtNumber: homeGoalieShirt || undefined,
           saves: homeSaves,
           goalsConceded: homeConceded,
           savePercentage: homeSavePct,
         },
         away: {
           goalieName: awayGoalieName,
+          shirtNumber: awayGoalieShirt || undefined,
           saves: awaySaves,
           goalsConceded: awayConceded,
           savePercentage: awaySavePct,
@@ -819,7 +832,7 @@ export function computePlayerLeaders(match: SalibandyMatchDetail): SalibandyPlay
       const aKey = `${g.assistName}_${g.team}`
       const aExisting = leadersMap.get(aKey) || {
         playerName: g.assistName,
-        shirtNumber: '',
+        shirtNumber: g.assistShirtNumber || '',
         teamName: g.team === 'home' ? match.homeTeamName : match.awayTeamName,
         goals: 0,
         assists: 0,
@@ -1378,6 +1391,7 @@ async function lookupPlayerHit(id: string): Promise<DiscoveryHit | null> {
     title,
     subtitle: [str(p.club_abbrevation) || str(p.club_name), p.birthyear ? `s. ${str(p.birthyear)}` : ''].filter(Boolean).join(' · ') || 'Pelaaja',
     clubId: numericId(p.club_id),
+    shirtNumber: (Array.isArray(p.teams) ? p.teams.map((t: any) => str(t.shirt_number)).find(Boolean) : undefined) || undefined,
   }
 }
 
@@ -1612,7 +1626,8 @@ export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDat
             kind: 'player',
             id: p.playerId,
             title: p.fullName,
-            subtitle: [teamName, p.shirtNumber ? `#${p.shirtNumber}` : '', `pelaa nyt: ${str(mm.team_A_name)} – ${str(mm.team_B_name)}`]
+            shirtNumber: p.shirtNumber || undefined,
+            subtitle: [teamName, `pelaa nyt: ${str(mm.team_A_name)} – ${str(mm.team_B_name)}`]
               .filter(Boolean)
               .join(' · '),
             teamId: numericId(teamId),
@@ -1683,4 +1698,19 @@ export async function fetchPlayerHistory(playerId: string, now = Date.now()): Pr
     /* quota: fine, we refetch next time */
   }
   return rows
+}
+
+/** Shirt numbers for player hits that came without one (getPlayers sends none). Uses getPlayer teams[]. */
+export async function enrichPlayerShirts(hits: DiscoveryHit[], max = 6): Promise<DiscoveryHit[]> {
+  const need = hits.filter((h) => h.kind === 'player' && !h.shirtNumber).slice(0, max)
+  if (!need.length) return hits
+  const found = new Map<string, string>()
+  await Promise.all(
+    need.map(async (h) => {
+      const p = await fetchSalibandyPlayer(h.id).catch(() => null)
+      const t = p?.teams.find((x) => x.shirtNumber && (!h.teamId || x.teamId === h.teamId)) || p?.teams.find((x) => x.shirtNumber)
+      if (t?.shirtNumber) found.set(h.id, t.shirtNumber)
+    }),
+  )
+  return hits.map((h) => (h.kind === 'player' && !h.shirtNumber && found.has(h.id) ? { ...h, shirtNumber: found.get(h.id) } : h))
 }
