@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { SalibandyMatchDetail, SalibandyTeamFixture } from '../types/salibandy'
 import { MapPin, Calendar, Clock, Trophy } from 'lucide-react'
@@ -7,9 +8,12 @@ import { decidedTitle, finalScoreLabel } from '../utils/matchResult'
 export function PeriodScoreCard({
   match,
   dayGames = [],
+  events,
 }: {
   match: SalibandyMatchDetail
   dayGames?: SalibandyTeamFixture[]
+  /** Rendered above «Päivän ottelut» (Ottelun tapahtumat). */
+  events?: ReactNode
 }) {
   const navigate = useNavigate()
   const upcoming = match.phase === 'upcoming'
@@ -120,6 +124,8 @@ export function PeriodScoreCard({
           )}
         </div>
       </div>
+
+      {events && <div className="mt-4">{events}</div>}
 
       {pool.length > 0 && (
         <div className="mt-4 rounded-xl bg-[#0B132B]/80 border border-slate-800 p-3 space-y-1.5">
