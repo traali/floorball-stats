@@ -1,4 +1,5 @@
 import { StatsExport } from '../components/StatsExport'
+import { MatchEventsTimeline } from '../components/MatchEventsTimeline'
 import { scoreWithSuffix } from '../utils/matchResult'
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -199,6 +200,8 @@ export function MatchPage() {
           },
         )}
       />
+
+      <MatchEventsTimeline matchId={match.matchId} homeName={match.homeTeamName} awayName={match.awayTeamName} />
 
       {/* Detail Sub-Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 pb-1 border-b border-slate-800 text-xs font-semibold">
