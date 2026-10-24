@@ -146,7 +146,7 @@ export function toCsv(rows: Raw[]): string {
   const cols = Object.keys(rows[0])
   return [cols.join(','), ...rows.map((r) => cols.map((c) => cell(r[c])).join(','))].join('\n')
 }
-const metaCsv = (meta: Raw) => Object.entries(meta).map(([k, x]) => `# ${k}: ${x}`).join('\n')
+const metaCsv = (meta: Raw) => [...Object.entries(meta).map(([k, x]) => `# ${k}: ${x}`), `# haettu: ${helsinkiTime(String(meta.fetched_at))}`].join('\n')
 export function playerCsv(x: PlayerExport) {
   return [metaCsv(x.meta), `# player: ${x.profile.name} (${x.profile.shirt_numbers.map((s) => '#' + s).join(' ')})`, '', '## matches', toCsv(x.matches),
     '', '## season_totals (TASO statistics)', toCsv(x.season_totals), '', '## series_totals (summed from match rows)', toCsv(x.series_totals),
@@ -159,15 +159,34 @@ export function matchCsv(x: MatchExport) {
 
 // ---------- Prompt ----------
 export const PROMPT_MAX = 24000
-function compactJson(x: unknown, max: number): { json: string; trimmed: boolean } {
+/** Human-readable Helsinki time for an ISO UTC timestamp (data keeps the ISO). */
+export function helsinkiTime(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return new Intl.DateTimeFormat('fi-FI', { timeZone: 'Europe/Helsinki', day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(d) + ' (Helsingin aikaa)'
+}
+/**
+ * Fit JSON under `max` chars by dropping whole array items (oldest matches first —
+ * arrays are newest-first — then other arrays' tail items). Never cuts characters,
+ * so the result always parses. Returns how many matches were dropped.
+ */
+export function compactJson(x: unknown, max: number): { json: string; trimmed: boolean; droppedMatches: number; droppedOther: number } {
   let json = JSON.stringify(x)
-  if (json.length <= max) return { json, trimmed: false }
-  const c = JSON.parse(json)
-  for (const key of ['matches', 'events']) {
-    while (Array.isArray(c[key]) && c[key].length > 10 && JSON.stringify(c).length > max) c[key] = c[key].slice(0, Math.ceil(c[key].length * 0.8))
-  }
+  if (json.length <= max) return { json, trimmed: false, droppedMatches: 0, droppedOther: 0 }
+  const c = JSON.parse(json) as Record<string, any>
+  let droppedMatches = 0, droppedOther = 0
+  const size = () => JSON.stringify(c).length
+  if (Array.isArray(c.matches)) while (c.matches.length && size() > max) { c.matches.pop(); droppedMatches++ }
+  const order = ['events', 'series_totals', 'season_totals', 'upcoming', 'previous_clubs', 'lineups', 'teams', 'periods']
+  for (const key of order) if (Array.isArray(c[key])) while (c[key].length && size() > max) { c[key].pop(); droppedOther++ }
   json = JSON.stringify(c)
-  return { json: json.slice(0, max), trimmed: true }
+  return { json, trimmed: true, droppedMatches, droppedOther }
+}
+function trimNote(t: { trimmed: boolean; droppedMatches: number; droppedOther: number }) {
+  if (!t.trimmed) return ''
+  const parts = [`${t.droppedMatches} vanhinta ottelua pois`]
+  if (t.droppedOther) parts.push(`${t.droppedOther} muuta riviä pois`)
+  return `- Huom: data on lyhennetty (${parts.join(', ')}).`
 }
 const RULES = [
   'Käytä VAIN alla olevaa dataa. Älä keksi tilastoja, äläkä laske torjuntaprosentteja tai muita johdettuja lukuja, joita datassa ei ole.',
@@ -176,15 +195,15 @@ const RULES = [
   'Numero (#) on pelinumero. Vastaa suomeksi, tiiviisti otsikoin.',
 ]
 export function playerPrompt(x: PlayerExport, max = PROMPT_MAX) {
-  const { json, trimmed } = compactJson(x, max)
+  const t = compactJson(x, max)
   const who = `${x.profile.shirt_numbers[0] ? '#' + x.profile.shirt_numbers[0] + ' ' : ''}${x.profile.name}`
   const ask = x.profile.goalie
     ? `Analysoi maalivahti ${who}: vire viimeisissä otteluissa, torjunnat ja päästetyt maalit siltä osin kuin TASO ne kirjasi, kehitys kausittain ja sarjoittain, vahvuudet, roolin eri joukkueissa ja ikäluokissa sekä seuraavat ottelut.`
     : `Analysoi pelaaja ${who}: vire viimeisissä otteluissa, vahvuudet, trendit kausittain ja sarjoittain, rooli eri joukkueissa ja ikäluokissa sekä seuraavat ottelut.`
-  return [ask, ...RULES.map((r) => '- ' + r), trimmed ? '- Huom: data on lyhennetty (vanhimpia otteluita pois).' : '', `Lähde: ${x.meta.source}, haettu ${x.meta.fetched_at}.`, '', 'DATA (JSON):', json].filter(Boolean).join('\n')
+  return [ask, ...RULES.map((r) => '- ' + r), trimNote(t), `Lähde: ${x.meta.source}, haettu ${helsinkiTime(x.meta.fetched_at)}.`, '', 'DATA (JSON):', t.json].filter(Boolean).join('\n')
 }
 export function matchPrompt(x: MatchExport, max = PROMPT_MAX) {
-  const { json, trimmed } = compactJson(x, max)
+  const t = compactJson(x, max)
   return [`Analysoi salibandyottelu ${x.match.home} – ${x.match.away} (${x.match.date}, ${x.match.category}): ottelun kulku erittäin, ratkaisevat hetket, joukkueiden ja yksittäisten pelaajien (myös maalivahtien) suoritukset sekä huomiot kokoonpanoista (syntymävuodet, yli-ikäiset).`,
-    ...RULES.map((r) => '- ' + r), trimmed ? '- Huom: data on lyhennetty.' : '', `Lähde: ${x.meta.source}, haettu ${x.meta.fetched_at}.`, '', 'DATA (JSON):', json].filter(Boolean).join('\n')
+    ...RULES.map((r) => '- ' + r), trimNote(t), `Lähde: ${x.meta.source}, haettu ${helsinkiTime(x.meta.fetched_at)}.`, '', 'DATA (JSON):', t.json].filter(Boolean).join('\n')
 }

@@ -56,3 +56,42 @@ describe('match export (949684)', () => {
     assert.match(matchPrompt(x), /^Analysoi salibandyottelu Westend Indians Yellow – SB Vantaa Valkoinen/)
   })
 })
+
+describe('prompt JSON stays valid when trimmed (real 43328 data)', () => {
+  const x = buildPlayerExport(fx('oct24-getPlayer-43328').player, AT)
+  const jsonOf = (p) => JSON.parse(p.slice(p.indexOf('DATA (JSON):\n') + 'DATA (JSON):\n'.length))
+  it('default prompt JSON parses and fits', () => {
+    const p = playerPrompt(x)
+    assert.ok(p.length < 26000)
+    const j = jsonOf(p)
+    assert.equal(j.profile.player_id, '43328')
+    assert.equal(j.meta.fetched_at, AT)
+  })
+  for (const max of [6000, 5000, 4000]) {
+    it(`max ${max}: drops oldest whole matches, JSON parses, note counts them`, () => {
+      const p = playerPrompt(x, max)
+      const j = jsonOf(p)
+      const dropped = x.matches.length - j.matches.length
+      assert.ok(dropped > 0)
+      assert.deepEqual(j.matches, x.matches.slice(0, j.matches.length)) // newest kept, oldest dropped
+      assert.match(p, new RegExp(`data on lyhennetty \\(${dropped} vanhinta ottelua pois`))
+      assert.ok(JSON.stringify(j).length <= max)
+    })
+  }
+  it('very small max: all matches dropped, other whole items dropped, still parses', () => {
+    const p = playerPrompt(x, 2000)
+    const j = jsonOf(p)
+    assert.equal(j.matches.length, 0)
+    assert.match(p, new RegExp(`lyhennetty \\(${x.matches.length} vanhinta ottelua pois, \\d+ muuta riviä pois`))
+  })
+  it('match prompt JSON parses when trimmed (949684)', () => {
+    const m = buildMatchExport(fx('oct24-getMatch-949684-full').match, AT)
+    const j = jsonOf(matchPrompt(m, 4000))
+    assert.equal(j.match.match_id, '949684')
+  })
+  it('fetched_at shown in Helsinki time, ISO kept in data', () => {
+    const p = playerPrompt(x)
+    assert.match(p, /haettu 24\.10\.2026 klo 15\.45 \(Helsingin aikaa\)/)
+    assert.match(playerCsv(x), /# fetched_at: 2026-10-24T12:45:00\.000Z/)
+  })
+})
