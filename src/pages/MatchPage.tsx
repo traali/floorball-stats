@@ -182,6 +182,7 @@ export function MatchPage() {
       {/* Main score card + same-day tournament games */}
       <PeriodScoreCard
         match={match}
+        events={<MatchEventsTimeline matchId={match.matchId} homeName={match.homeTeamName} awayName={match.awayTeamName} />}
         dayGames={sameDayPool(
           [homeFx, awayFx],
           match.date,
@@ -200,8 +201,6 @@ export function MatchPage() {
           },
         )}
       />
-
-      <MatchEventsTimeline matchId={match.matchId} homeName={match.homeTeamName} awayName={match.awayTeamName} />
 
       {/* Detail Sub-Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 pb-1 border-b border-slate-800 text-xs font-semibold">
