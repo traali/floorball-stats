@@ -32,3 +32,11 @@ describe('match events timeline (949684)', () => {
     assert.ok(isLiveStatus('Live')); assert.ok(isLiveStatus('Käynnissä')); assert.ok(!isLiveStatus('Played'))
   })
 })
+describe('timeline order', () => {
+  it('period 1 chronological, Erä Loppui last', () => {
+    const p1 = buildTimeline(m)[0].items
+    assert.equal(p1.at(-1).label, 'Erä Loppui')
+    const goals = p1.filter((i) => i.kind === 'goal').map((g) => g.time)
+    assert.deepEqual(goals, ['2:54', '3:15', '3:56', '8:58'])
+  })
+})

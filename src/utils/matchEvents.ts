@@ -55,7 +55,10 @@ export function buildTimeline(m: Raw): TimelinePeriod[] {
     }
     // vaihto, syotto (paired), paastetty (paired), yhteyspalasi, kelloseis: not shown on their own
   }
-  return [...byPeriod.entries()].sort((a, b) => a[0] - b[0]).map(([period, items]) => ({ period, label: periodLabel(period), items }))
+  const rank = (it: TimelineItem) => (it.kind === 'marker' ? (/loppui/i.test(it.label) ? 2 : -1) : 0)
+  const secs = (t: string) => { const m = /^(\d+):(\d+)$/.exec(t); return m ? Number(m[1]) * 60 + Number(m[2]) : 0 }
+  const ordered = (items: TimelineItem[]) => items.map((it, i) => ({ it, i })).sort((a, b) => rank(a.it) - rank(b.it) || secs(a.it.time) - secs(b.it.time) || a.i - b.i).map((x) => x.it)
+  return [...byPeriod.entries()].sort((a, b) => a[0] - b[0]).map(([period, items]) => ({ period, label: periodLabel(period), items: ordered(items) }))
 }
 
 export const isLiveStatus = (status: unknown) => /^(Live|Käynnissä|Running|Ongoing)$/i.test(s(status))
