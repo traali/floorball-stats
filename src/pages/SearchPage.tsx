@@ -7,6 +7,7 @@ import type { DiscoveryHit } from '../types/salibandy'
 import { favoriteClubIds, useFavorites, type FavKind } from '../hooks/useFavorites'
 import { readRecentSearches, rememberSearch } from '../utils/recentSearches'
 
+export const SEARCH_TIMEOUT_MS = 25_000
 const EMPTY_RESULT: SearchResult = { hits: [], playerClubs: [] }
 
 export function SearchPage() {
@@ -17,6 +18,7 @@ export function SearchPage() {
   const [result, setResult] = useState<SearchResult>(EMPTY_RESULT)
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [timedOut, setTimedOut] = useState(false)
   const [recent, setRecent] = useState<string[]>(() => readRecentSearches())
   const { favorites, isFavorite, toggle } = useFavorites()
   const favClubKey = favoriteClubIds(favorites).join(',')
@@ -30,7 +32,12 @@ export function SearchPage() {
     let cancelled = false
     setLoading(true)
     setFailed(false)
-    searchSalibandy(q, { favoriteClubIds: favClubKey ? favClubKey.split(',') : [] })
+    setTimedOut(false)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => { if (!cancelled) setTimedOut(true); reject(new Error('timeout')) }, SEARCH_TIMEOUT_MS)
+    })
+    Promise.race([searchSalibandy(q, { favoriteClubIds: favClubKey ? favClubKey.split(',') : [] }), timeout])
       .then((res) => {
         if (cancelled) return
         setResult(res)
@@ -46,10 +53,12 @@ export function SearchPage() {
         }
       })
       .finally(() => {
+        if (timer) clearTimeout(timer)
         if (!cancelled) setLoading(false)
       })
     return () => {
       cancelled = true
+      if (timer) clearTimeout(timer)
     }
   }, [q, favClubKey])
 
@@ -130,6 +139,10 @@ export function SearchPage() {
         <p className="text-sm text-slate-400">Haetaan tulospalvelusta…</p>
       ) : !q ? (
         <p className="text-sm text-slate-500">Aloita hakemalla joukkuetta, seuraa tai pelaajaa.</p>
+      ) : failed && timedOut ? (
+        <p className="text-sm text-rose-300" data-testid="search-timeout">
+          Haku kesti liian kauan ({SEARCH_TIMEOUT_MS / 1000} s), tulospalvelu ei vastannut ajoissa. Yritä uudelleen tai tarkenna hakua (esim. «seura sukunimi»).
+        </p>
       ) : failed ? (
         <p className="text-sm text-rose-300" data-testid="search-error">
           Tulospalvelu ei vastannut{getTasoFailure()?.body ? ` («${getTasoFailure()?.body.slice(0, 40)}»)` : ''}. Haku ei siis ole tyhjä vaan epäonnistui — yritä hetken päästä uudelleen.
@@ -141,9 +154,9 @@ export function SearchPage() {
               {isIdQuery ? `Tulospalvelu ei tunne tunnusta «${q}».` : `Ei osumia haulle «${q}».`}
             </p>
           ) : null}
-          <HitGroup icon={Users} title="Seurat" items={grouped.club} fav={favToggle} onOpen={(id) => navigate(`/club/${id}`)} />
-          <HitGroup icon={Shield} title="Joukkueet" items={grouped.team} fav={favToggle} onOpen={(id) => navigate(`/team/${id}`)} />
-          <HitGroup icon={User} title="Pelaajat" items={grouped.player} fav={favToggle} onOpen={(id) => navigate(`/player/${id}`)} />
+          <HitGroup icon={Users} title="Seurat" items={grouped.club} fav={favToggle} to={(id) => `/club/${id}`} />
+          <HitGroup icon={Shield} title="Joukkueet" items={grouped.team} fav={favToggle} to={(id) => `/team/${id}`} />
+          <HitGroup icon={User} title="Pelaajat" items={grouped.player} fav={favToggle} to={(id) => `/player/${id}`} />
           {!isIdQuery && grouped.player.length === 0 ? (
             <p className="text-xs text-slate-400 rounded-xl border border-slate-800 bg-[#1C2541]/50 px-3 py-2" data-testid="player-hint">
               {result.playerClubs.length > 0
@@ -152,17 +165,17 @@ export function SearchPage() {
               Löydät pelaajan lisäämällä seuran nimen, esim. «seura sukunimi».
             </p>
           ) : null}
-          <HitGroup icon={Trophy} title="Kilpailut" items={grouped.competition} onOpen={(id) => navigate(`/competition/${id}`)} />
+          <HitGroup icon={Trophy} title="Kilpailut" items={grouped.competition} to={(id) => `/competition/${id}`} />
           <HitGroup
             icon={Layers}
             title="Sarjat"
             items={grouped.category}
-            onOpen={(id) => {
+            to={(id) => {
               const [comp, cat] = id.split('::')
-              if (comp && cat) navigate(`/competition/${comp}/category/${cat}`)
+              return `/competition/${comp}/category/${cat}`
             }}
           />
-          <HitGroup icon={Calendar} title="Ottelut" items={grouped.match} onOpen={(id) => navigate(`/match/${id}`)} />
+          <HitGroup icon={Calendar} title="Ottelut" items={grouped.match} to={(id) => `/match/${id}`} />
         </div>
       )}
     </div>
@@ -173,15 +186,16 @@ function HitGroup({
   title,
   icon: Icon,
   items,
-  onOpen,
+  to,
   fav,
 }: {
   title: string
   icon: typeof Shield
   items: DiscoveryHit[]
-  onOpen: (id: string) => void
+  to: (id: string) => string
   fav?: (h: DiscoveryHit) => { active: boolean; onToggle: () => void } | undefined
 }) {
+  const navigate = useNavigate()
   if (items.length === 0) return null
   return (
     <section className="space-y-2">
@@ -196,10 +210,10 @@ function HitGroup({
             data-hit={`${h.kind}:${h.id}`}
             className="flex items-center gap-2 rounded-xl border border-slate-800 bg-[#1C2541] hover:border-[#5BC0BE]/50"
           >
-            <button type="button" onClick={() => onOpen(h.id)} className="grow min-w-0 text-left px-3 py-3">
+            <a href={`#${to(h.id)}`} data-testid="search-hit" onClick={(e) => { e.preventDefault(); navigate(to(h.id)) }} className="block grow min-w-0 text-left px-3 py-3">
               <p className="text-sm font-semibold text-white truncate">{h.kind === 'player' ? withShirt(h.title, h.shirtNumber) : h.title}</p>
               <p className="text-[11px] text-slate-400 truncate">{h.subtitle}</p>
-            </button>
+            </a>
             {f ? (
               <button
                 type="button"

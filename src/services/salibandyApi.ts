@@ -1585,13 +1585,17 @@ export async function searchSalibandy(query: string, opts: SearchOptions = {}): 
   }
 }
 
-const MAX_LIVE_LINEUP_GAMES = 80
+const MAX_LIVE_LINEUP_GAMES = 200
 
-/** Players whose names match every token, from today's live games' lineups. */
+/** Players whose names match every token, from the lineups of today's games that
+ *  have started (live, break or already played), so a player stays findable after
+ *  the final whistle. */
 export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDateISO()): Promise<DiscoveryHit[]> {
   const day = await tasoGet<{ matches?: any[] }>(`getMatches?date=${todayIso}`, `getMatches:date:${todayIso}`, 60_000)
   const live = (day?.matches || [])
-    .filter((m) => ['live', 'break'].includes(String(m?.status || '').toLowerCase()))
+    .filter((m) => ['live', 'break', 'played'].includes(String(m?.status || '').toLowerCase()))
+    // Games on the floor first, then the most recently started played games.
+    .sort((a, b) => Number(String(b.status).toLowerCase() !== 'played') - Number(String(a.status).toLowerCase() !== 'played') || String(b.time || '').localeCompare(String(a.time || '')))
     .slice(0, MAX_LIVE_LINEUP_GAMES)
   const hits: DiscoveryHit[] = []
   const matchHits: DiscoveryHit[] = []
@@ -1600,7 +1604,9 @@ export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDat
   const worker = async () => {
     for (let m = queue.shift(); m; m = queue.shift()) {
       const id = str(m.match_id)
-      const data = await tasoGet<{ match?: any }>(`getMatch?match_id=${id}`, `getMatch:${id}`, 60_000).catch(() => null)
+      // A played game's lineup is final: cache it longer than a live one.
+      const ttl = String(m.status).toLowerCase() === 'played' ? 15 * 60_000 : 60_000
+      const data = await tasoGet<{ match?: any }>(`getMatch?match_id=${id}`, `getMatch:${id}`, ttl).catch(() => null)
       const mm = data?.match
       if (!mm) continue
       const { home, away } = extractMatchRosters(mm)
@@ -1619,7 +1625,7 @@ export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDat
               kind: 'match',
               id,
               title: `${str(mm.team_A_name)} – ${str(mm.team_B_name)}`,
-              subtitle: [sc ? `${sc.home}–${sc.away}` : '', matchState(mm) === 'break' ? 'Erätauko' : 'Käynnissä', str(mm.category_name)].filter(Boolean).join(' · '),
+              subtitle: [sc ? `${sc.home}–${sc.away}` : '', String(mm.status).toLowerCase() === 'played' ? 'Pelattu' : matchState(mm) === 'break' ? 'Erätauko' : 'Käynnissä', str(mm.category_name)].filter(Boolean).join(' · '),
             })
           }
           hits.push({
@@ -1627,7 +1633,7 @@ export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDat
             id: p.playerId,
             title: p.fullName,
             shirtNumber: p.shirtNumber || undefined,
-            subtitle: [teamName, `pelaa nyt: ${str(mm.team_A_name)} – ${str(mm.team_B_name)}`]
+            subtitle: [teamName, `${String(mm.status).toLowerCase() === 'played' ? 'pelasi tänään' : 'pelaa nyt'}: ${str(mm.team_A_name)} – ${str(mm.team_B_name)}`]
               .filter(Boolean)
               .join(' · '),
             teamId: numericId(teamId),
@@ -1637,7 +1643,7 @@ export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDat
       }
     }
   }
-  await Promise.all(Array.from({ length: 10 }, worker))
+  await Promise.all(Array.from({ length: 16 }, worker))
   return [...hits, ...matchHits]
 }
 
