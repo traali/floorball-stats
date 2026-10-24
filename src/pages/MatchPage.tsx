@@ -60,6 +60,10 @@ export function MatchPage() {
   const [awayFx, setAwayFx] = useState<SalibandyTeamFixture[]>([])
   const [activeTab, setActiveTab] = useState<MatchTab>('match')
   const [loading, setLoading] = useState(true)
+  const openTab = (t: MatchTab) => {
+    setActiveTab(t)
+    requestAnimationFrame(() => document.getElementById('match-tab-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
   const profiles = useRosterPlayerForms([
     ...homeRoster.map((p) => p.playerId),
     ...awayRoster.map((p) => p.playerId),
@@ -205,7 +209,7 @@ export function MatchPage() {
       {/* Detail Sub-Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 pb-1 border-b border-slate-800 text-xs font-semibold">
         <button
-          onClick={() => setActiveTab('match')}
+          onClick={() => openTab('match')}
           className={clsx(
             'flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap',
             activeTab === 'match'
@@ -217,7 +221,7 @@ export function MatchPage() {
           Ottelukeskus
         </button>
         <button
-          onClick={() => setActiveTab('roster')}
+          onClick={() => openTab('roster')}
           className={clsx(
             'flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap',
             activeTab === 'roster'
@@ -229,7 +233,7 @@ export function MatchPage() {
           Kokoonpano
         </button>
         <button
-          onClick={() => setActiveTab('points')}
+          onClick={() => openTab('points')}
           className={clsx(
             'flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap',
             activeTab === 'points'
@@ -241,7 +245,7 @@ export function MatchPage() {
           Pistetilasto (G+A)
         </button>
         <button
-          onClick={() => setActiveTab('goalies')}
+          onClick={() => openTab('goalies')}
           className={clsx(
             'flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap',
             activeTab === 'goalies'
@@ -253,7 +257,7 @@ export function MatchPage() {
           Maalivahdit
         </button>
         <button
-          onClick={() => setActiveTab('special_teams')}
+          onClick={() => openTab('special_teams')}
           className={clsx(
             'flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap',
             activeTab === 'special_teams'
@@ -265,7 +269,7 @@ export function MatchPage() {
           Erikoistilanteet
         </button>
         <button
-          onClick={() => setActiveTab('standings')}
+          onClick={() => openTab('standings')}
           className={clsx(
             'flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap',
             activeTab === 'standings'
@@ -277,7 +281,7 @@ export function MatchPage() {
           Sarjataulukko
         </button>
         <button
-          onClick={() => setActiveTab('opponents')}
+          onClick={() => openTab('opponents')}
           className={clsx(
             'flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap',
             activeTab === 'opponents'
@@ -289,7 +293,7 @@ export function MatchPage() {
           Vastustajat
         </button>
         <button
-          onClick={() => setActiveTab('export')}
+          onClick={() => openTab('export')}
           className={clsx(
             'flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap',
             activeTab === 'export'
@@ -303,6 +307,7 @@ export function MatchPage() {
       </div>
 
       {/* Tab Views */}
+      <div id="match-tab-content" className="scroll-mt-4" />
       {activeTab === 'match' && (
         <div className="space-y-6">
           <EnnakkoRosters

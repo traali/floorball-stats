@@ -1587,11 +1587,13 @@ export async function searchSalibandy(query: string, opts: SearchOptions = {}): 
 
 const MAX_LIVE_LINEUP_GAMES = 80
 
-/** Players whose names match every token, from today's live games' lineups. */
+/** Players whose names match every token, from the lineups of today's games that
+ *  have started (live, break or already played), so a player stays findable after
+ *  the final whistle. */
 export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDateISO()): Promise<DiscoveryHit[]> {
   const day = await tasoGet<{ matches?: any[] }>(`getMatches?date=${todayIso}`, `getMatches:date:${todayIso}`, 60_000)
   const live = (day?.matches || [])
-    .filter((m) => ['live', 'break'].includes(String(m?.status || '').toLowerCase()))
+    .filter((m) => ['live', 'break', 'played'].includes(String(m?.status || '').toLowerCase()))
     .slice(0, MAX_LIVE_LINEUP_GAMES)
   const hits: DiscoveryHit[] = []
   const matchHits: DiscoveryHit[] = []
@@ -1619,7 +1621,7 @@ export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDat
               kind: 'match',
               id,
               title: `${str(mm.team_A_name)} – ${str(mm.team_B_name)}`,
-              subtitle: [sc ? `${sc.home}–${sc.away}` : '', matchState(mm) === 'break' ? 'Erätauko' : 'Käynnissä', str(mm.category_name)].filter(Boolean).join(' · '),
+              subtitle: [sc ? `${sc.home}–${sc.away}` : '', String(mm.status).toLowerCase() === 'played' ? 'Pelattu' : matchState(mm) === 'break' ? 'Erätauko' : 'Käynnissä', str(mm.category_name)].filter(Boolean).join(' · '),
             })
           }
           hits.push({
@@ -1627,7 +1629,7 @@ export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDat
             id: p.playerId,
             title: p.fullName,
             shirtNumber: p.shirtNumber || undefined,
-            subtitle: [teamName, `pelaa nyt: ${str(mm.team_A_name)} – ${str(mm.team_B_name)}`]
+            subtitle: [teamName, `${String(mm.status).toLowerCase() === 'played' ? 'pelasi tänään' : 'pelaa nyt'}: ${str(mm.team_A_name)} – ${str(mm.team_B_name)}`]
               .filter(Boolean)
               .join(' · '),
             teamId: numericId(teamId),
