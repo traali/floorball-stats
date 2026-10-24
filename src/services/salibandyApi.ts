@@ -1714,3 +1714,13 @@ export async function enrichPlayerShirts(hits: DiscoveryHit[], max = 6): Promise
   )
   return hits.map((h) => (h.kind === 'player' && !h.shirtNumber && found.has(h.id) ? { ...h, shirtNumber: found.get(h.id) } : h))
 }
+
+/** Raw TASO payloads for the stats export (fresh fetch, not cached). */
+export async function fetchRawPlayer(playerId: string): Promise<Record<string, any> | null> {
+  const d = await tasoFetch<{ player?: Record<string, any> }>(`getPlayer?player_id=${encodeURIComponent(playerId)}`)
+  return d?.player ?? null
+}
+export async function fetchRawMatch(matchId: string): Promise<Record<string, any> | null> {
+  const d = await tasoFetch<{ match?: Record<string, any> }>(`getMatch?match_id=${encodeURIComponent(matchId)}`)
+  return d?.match ?? null
+}

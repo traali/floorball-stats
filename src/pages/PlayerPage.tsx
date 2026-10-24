@@ -4,6 +4,7 @@ import { ArrowLeft, Heart } from 'lucide-react'
 import { fetchSalibandyPlayer, fetchSalibandyTeamFixtures } from '../services/salibandyApi'
 import type { SalibandyPlayerProfile, SalibandyTeamFixture } from '../types/salibandy'
 import { useFavorites } from '../hooks/useFavorites'
+import { StatsExport } from '../components/StatsExport'
 import { FloorballPlayerCard } from '../components/FloorballPlayerCard'
 import { historyRowsFromPlayer } from '../services/salibandyApi'
 import { seasonIdFor, seriesThisSeason } from '../utils/playerLevels'
@@ -65,6 +66,8 @@ export function PlayerPage() {
           <Heart className={`w-4 h-4 ${fav ? 'fill-current' : ''}`} />
         </button>
       </div>
+
+      <StatsExport kind="player" id={player.playerId} />
 
       {series.length > 0 && (
         <section data-testid="season-series" className="bg-[#1C2541] rounded-2xl p-4 border border-slate-700/60">

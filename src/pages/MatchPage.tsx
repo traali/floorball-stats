@@ -1,3 +1,4 @@
+import { StatsExport } from '../components/StatsExport'
 import { scoreWithSuffix } from '../utils/matchResult'
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -146,6 +147,7 @@ export function MatchPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
       {/* Top Navigation Bar with Back button */}
+      <StatsExport kind="match" id={match.matchId} />
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
