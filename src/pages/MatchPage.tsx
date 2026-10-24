@@ -147,7 +147,6 @@ export function MatchPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
       {/* Top Navigation Bar with Back button */}
-      <StatsExport kind="match" id={match.matchId} />
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
@@ -177,6 +176,7 @@ export function MatchPage() {
           ) : null}
         </div>
       </div>
+      <StatsExport kind="match" id={match.matchId} />
 
       {/* Main score card + same-day tournament games */}
       <PeriodScoreCard
