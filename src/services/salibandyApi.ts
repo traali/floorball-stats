@@ -1,3 +1,4 @@
+import { helsinkiDateISO } from '../utils/matchContext.ts'
 /**
  * SSBL Salibandy / Torneopal REST API Client
  * Base: https://salibandy-api.torneopal.net/taso/rest
@@ -145,24 +146,105 @@ export function isTasoError(text: string): boolean {
   }
 }
 
+// Torneopal signs every request the way tulospalvelu.salibandy.fi does
+// (assets/index-CkQ23erR.js): sha256 hex of "<method>?<salt>" followed by
+// "&k=v" for each param in query order with raw (unencoded) values, sent as
+// a trailing `hash` param. Same scheme and salt as the Palloliitto server.
+export const TASO_SALT = 'ysnyp4h6e9egetkc3s3v'
+
+export async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/** "getMatches?date=2026-10-24" → "getMatches?date=2026-10-24&hash=<hex>" */
+export async function signTasoPath(path: string): Promise<string> {
+  const qi = path.indexOf('?')
+  const method = qi < 0 ? path : path.slice(0, qi)
+  const query = qi < 0 ? '' : path.slice(qi + 1)
+  const pairs = query ? query.split('&').filter(Boolean) : []
+  let input = `${method}?${TASO_SALT}`
+  for (const pair of pairs) {
+    const eq = pair.indexOf('=')
+    const k = eq < 0 ? pair : pair.slice(0, eq)
+    const v = eq < 0 ? '' : pair.slice(eq + 1)
+    let raw = v
+    try {
+      raw = decodeURIComponent(v.replace(/\+/g, ' '))
+    } catch {
+      /* keep as is */
+    }
+    input += `&${k}=${raw}`
+  }
+  const hash = await sha256Hex(input)
+  return `${method}?${pairs.concat(`hash=${hash}`).join('&')}`
+}
+
+/** Why the last TASO call failed (e.g. «Not allowed 2»), for the UI. */
+export type TasoFailure = { at: number; path: string; status: number; body: string }
+let lastFailure: TasoFailure | null = null
+export const TASO_FAILURE_EVENT = 'taso-failure'
+export function getTasoFailure(): TasoFailure | null {
+  return lastFailure
+}
+function noteFailure(path: string, status: number, body: string) {
+  lastFailure = { at: Date.now(), path, status, body: body.slice(0, 120) }
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    try {
+      window.dispatchEvent(new CustomEvent(TASO_FAILURE_EVENT, { detail: lastFailure }))
+    } catch {
+      /* ignore */
+    }
+  }
+}
+function noteSuccess() {
+  if (lastFailure && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    lastFailure = null
+    try {
+      window.dispatchEvent(new CustomEvent(TASO_FAILURE_EVENT, { detail: null }))
+    } catch {
+      /* ignore */
+    }
+  }
+  lastFailure = null
+}
+
+/** Thrown when TASO refuses (403, «Not allowed …», or any non-JSON body). */
+export class TasoUnavailableError extends Error {
+  failure: TasoFailure | null
+  constructor(failure: TasoFailure | null) {
+    super(`TASO unavailable${failure ? `: ${failure.status} ${failure.body}` : ''}`)
+    this.failure = failure
+  }
+}
+
 /**
- * Direct to Torneopal, then the same URL with a cache-buster: the Torneopal edge
- * caches a 403 for 60 s per URL, so the busted URL gets past a poisoned entry.
+ * Signed request to Torneopal, then a signed cache-busted retry: the Torneopal
+ * edge caches a 403 for 60 s per URL, so the busted URL gets past a poisoned entry.
+ * A «Not allowed» or other non-JSON body is a failure, never an empty result.
  */
 async function tasoFetch<T>(path: string): Promise<T | null> {
   const sep = path.includes('?') ? '&' : '?'
-  const urls = [`${API_BASE}/${path}`, `${API_BASE}/${path}${sep}_cb=${Date.now()}`]
-  for (const url of urls) {
+  const paths = [path, `${path}${sep}_cb=${Date.now()}`]
+  for (const p of paths) {
+    const url = `${API_BASE}/${await signTasoPath(p)}`
     try {
       const res = await fetch(url, { headers: reqHeaders })
-      if (!res.ok) continue
-      const text = await res.text()
+      const text = await res.text().catch(() => '')
+      if (!res.ok) {
+        noteFailure(path, res.status, text || res.statusText)
+        continue
+      }
       const data = parseTasoBody<T>(text)
-      if (data) return data
-      // A clean JSON error («Player not found») is an answer; only a 403 page
-      // or a non-JSON body is worth the cache-busted retry.
+      if (data) {
+        noteSuccess()
+        return data
+      }
+      // A clean JSON error («Player not found») is an answer.
       if (isTasoError(text)) return null
+      noteFailure(path, res.status, text)
     } catch (err) {
+      noteFailure(path, 0, String(err))
       console.warn('[SALIBANDY_API]', url, err)
     }
   }
@@ -527,6 +609,8 @@ export function extractMatchRosters(m: Record<string, unknown>): { home: Saliban
   for (const p of asPlayerList(teamA?.players)) push(p, 'home')
   for (const p of asPlayerList(teamB?.players)) push(p, 'away')
   const lu = m?.lineups as Record<string, unknown> | undefined
+  // getMatch today: a flat lineups[] with team_id per player.
+  if (Array.isArray(lu)) for (const p of asPlayerList(lu)) push(p, null)
   if (lu && typeof lu === 'object' && !Array.isArray(lu)) {
     for (const p of asPlayerList(lu.A || lu.home || lu.team_A)) push(p, 'home')
     for (const p of asPlayerList(lu.B || lu.away || lu.team_B)) push(p, 'away')
@@ -1108,6 +1192,8 @@ export interface ClubPlayer {
 export interface SearchOptions {
   /** Clubs of saved favourites: their players are searched by name too. */
   favoriteClubIds?: string[]
+  /** Skip the live-lineup fallback for bare names. */
+  skipLiveLineups?: boolean
 }
 
 export interface SearchResult {
@@ -1338,6 +1424,7 @@ export async function searchSalibandy(query: string, opts: SearchOptions = {}): 
     fetchSalibandyClubs().catch(() => [] as SalibandyClubSummary[]),
     fetchTeamIndex().catch(() => [] as TeamIndexEntry[]),
   ])
+  if (clubs.length === 0 && teams.length === 0 && getTasoFailure()) throw new TasoUnavailableError(getTasoFailure())
   const clubById = new Map(clubs.map((c) => [c.clubId, c]))
   const hits: DiscoveryHit[] = []
 
@@ -1431,6 +1518,14 @@ export async function searchSalibandy(query: string, opts: SearchOptions = {}): 
       })
     })
 
+  // A bare name (no club in the query): look in the lineups of games being
+  // played right now, which TASO sends with getMatch. Only live/break games of
+  // today, so it stays a few dozen cached calls.
+  if (playerHits.length === 0 && tokens.length >= 2 && !opts.skipLiveLineups) {
+    const live = await searchLiveLineups(tokens).catch(() => [] as DiscoveryHit[])
+    hits.push(...live)
+  }
+
   // Competitions and categories from the live competition list.
   const comps = await fetchSalibandyCompetitions().catch(() => [] as SalibandyCompetition[])
   for (const c of comps) {
@@ -1459,6 +1554,61 @@ export async function searchSalibandy(query: string, opts: SearchOptions = {}): 
     hits,
     playerClubs: playerClubs.map(({ club }) => ({ clubId: club.clubId, name: club.abbreviation || club.name })),
   }
+}
+
+const MAX_LIVE_LINEUP_GAMES = 80
+
+/** Players whose names match every token, from today's live games' lineups. */
+export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDateISO()): Promise<DiscoveryHit[]> {
+  const day = await tasoGet<{ matches?: any[] }>(`getMatches?date=${todayIso}`, `getMatches:date:${todayIso}`, 60_000)
+  const live = (day?.matches || [])
+    .filter((m) => ['live', 'break'].includes(String(m?.status || '').toLowerCase()))
+    .slice(0, MAX_LIVE_LINEUP_GAMES)
+  const hits: DiscoveryHit[] = []
+  const matchHits: DiscoveryHit[] = []
+  const seen = new Set<string>()
+  const queue = [...live]
+  const worker = async () => {
+    for (let m = queue.shift(); m; m = queue.shift()) {
+      const id = str(m.match_id)
+      const data = await tasoGet<{ match?: any }>(`getMatch?match_id=${id}`, `getMatch:${id}`, 60_000).catch(() => null)
+      const mm = data?.match
+      if (!mm) continue
+      const { home, away } = extractMatchRosters(mm)
+      for (const [list, teamName, teamId] of [
+        [home, str(mm.team_A_name), str(mm.team_A_id)],
+        [away, str(mm.team_B_name), str(mm.team_B_id)],
+      ] as const) {
+        for (const p of list) {
+          const hay = normalizeSearch(p.fullName)
+          if (!p.playerId || seen.has(p.playerId) || !tokens.every((t) => hay.includes(t))) continue
+          seen.add(p.playerId)
+          if (!seen.has(`m${id}`)) {
+            seen.add(`m${id}`)
+            const sc = tasoScore(mm)
+            matchHits.push({
+              kind: 'match',
+              id,
+              title: `${str(mm.team_A_name)} – ${str(mm.team_B_name)}`,
+              subtitle: [sc ? `${sc.home}–${sc.away}` : '', matchState(mm) === 'break' ? 'Erätauko' : 'Käynnissä', str(mm.category_name)].filter(Boolean).join(' · '),
+            })
+          }
+          hits.push({
+            kind: 'player',
+            id: p.playerId,
+            title: p.fullName,
+            subtitle: [teamName, p.shirtNumber ? `#${p.shirtNumber}` : '', `pelaa nyt: ${str(mm.team_A_name)} – ${str(mm.team_B_name)}`]
+              .filter(Boolean)
+              .join(' · '),
+            teamId: numericId(teamId),
+            matchId: numericId(id),
+          })
+        }
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: 10 }, worker))
+  return [...hits, ...matchHits]
 }
 
 export async function searchDiscovery(query: string, opts?: SearchOptions): Promise<DiscoveryHit[]> {

@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
 import { BottomNav } from './BottomNav'
 import { VersionBadge } from './VersionBadge'
+import { TasoErrorBanner } from './TasoErrorBanner'
 
 export function Layout() {
   const isEmbed =
@@ -14,6 +15,7 @@ export function Layout() {
     }`}>
       <div className="flex-1 w-full">
         {!isEmbed && <Header isEmbed={isEmbed} />}
+        <TasoErrorBanner />
         <main className="py-2">
           <Outlet />
         </main>
