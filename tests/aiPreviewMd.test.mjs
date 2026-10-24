@@ -23,8 +23,8 @@ describe('Floorball AI preview markdown', () => {
         penalties: [],
         saves: [],
         goalkeepers: {
-          home: { goalieName: '—', saves: 0, goalsConceded: 0, savePercentage: '—' },
-          away: { goalieName: '—', saves: 0, goalsConceded: 0, savePercentage: '—' },
+          home: { goalieName: '—', saves: null, goalsConceded: 0 },
+          away: { goalieName: '—', saves: null, goalsConceded: 0 },
         },
         totalEvents: 0,
       },

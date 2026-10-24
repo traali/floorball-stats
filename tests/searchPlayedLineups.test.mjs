@@ -39,3 +39,21 @@ describe('bare-name search in today’s lineups', () => {
     assert.equal(hits.length, 0)
   })
 })
+
+describe('lineup search speed: day cache + streaming', () => {
+  beforeEach(() => { resetSalibandyCaches(); globalThis.localStorage = mem() })
+  it('streams the hit via onHit and repeat search skips getMatch for played games', async () => {
+    serve('Played')
+    const streamed = []
+    const hits = await searchLiveLineups(['simo', 'oinonen'], '2026-10-24', (h) => streamed.push(h))
+    assert.ok(streamed.length >= 1 && streamed[0].some((h) => h.kind === 'player'))
+    assert.ok(hits.find((h) => h.kind === 'player'))
+    let getMatchCalls = 0
+    const prev = globalThis.fetch
+    globalThis.fetch = async (u) => { if (/getMatch\?/.test(decodeURIComponent(String(u))) || /getMatch%3F|getMatch&|getMatch\?/.test(String(u))) getMatchCalls++; return prev(u) }
+    resetSalibandyCaches() // memory gone, localStorage day index stays
+    const again = await searchLiveLineups(['simo', 'oinonen'], '2026-10-24')
+    assert.ok(again.find((h) => h.kind === 'player' && /Oinonen/.test(h.title)))
+    assert.equal(getMatchCalls, 0)
+  })
+})

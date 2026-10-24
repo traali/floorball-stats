@@ -53,6 +53,7 @@ export function MatchPage() {
 
   const [match, setMatch] = useState<SalibandyMatchDetail | null>(null)
   const [leaders, setLeaders] = useState<SalibandyPlayerLeader[]>([])
+  const [tabFlash, setTabFlash] = useState(0)
   const [standings, setStandings] = useState<SalibandyStandingRow[]>([])
   const [homeRoster, setHomeRoster] = useState<SalibandyRosterPlayer[]>([])
   const [awayRoster, setAwayRoster] = useState<SalibandyRosterPlayer[]>([])
@@ -62,7 +63,14 @@ export function MatchPage() {
   const [loading, setLoading] = useState(true)
   const openTab = (t: MatchTab) => {
     setActiveTab(t)
-    requestAnimationFrame(() => document.getElementById('match-tab-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    setTabFlash((n) => n + 1)
+    // Gentle: only nudge the tab bar into view when it is (partly) off-screen; never jump to content far below.
+    requestAnimationFrame(() => {
+      const bar = document.getElementById('match-tabs')
+      if (!bar) return
+      const r = bar.getBoundingClientRect()
+      if (r.top < 0 || r.bottom > window.innerHeight) bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
   }
   const profiles = useRosterPlayerForms([
     ...homeRoster.map((p) => p.playerId),
@@ -207,7 +215,7 @@ export function MatchPage() {
       />
 
       {/* Detail Sub-Tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 pb-1 border-b border-slate-800 text-xs font-semibold">
+      <div id="match-tabs" data-testid="match-tabs" className="flex flex-wrap items-center gap-1.5 pb-1 border-b border-slate-800 text-xs font-semibold scroll-mt-2">
         <button
           onClick={() => openTab('match')}
           className={clsx(
@@ -307,7 +315,7 @@ export function MatchPage() {
       </div>
 
       {/* Tab Views */}
-      <div id="match-tab-content" className="scroll-mt-4" />
+      <div id="match-tab-content" key={`flash-${tabFlash}`} data-testid="match-tab-content" className={tabFlash > 0 ? 'tab-flash h-0.5 -mt-4 rounded-full' : 'h-0.5 -mt-4'} />
       {activeTab === 'match' && (
         <div className="space-y-6">
           <EnnakkoRosters

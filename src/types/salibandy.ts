@@ -62,16 +62,16 @@ export interface SalibandyGoalkeeperStats {
   home: {
     goalieName: string
     shirtNumber?: string
-    saves: number
+    /** null = TASO recorded no saves (show «– (ei kirjattu)»). */
+    saves: number | null
     goalsConceded: number
-    savePercentage: string
   }
   away: {
     goalieName: string
     shirtNumber?: string
-    saves: number
+    /** null = TASO recorded no saves (show «– (ei kirjattu)»). */
+    saves: number | null
     goalsConceded: number
-    savePercentage: string
   }
 }
 

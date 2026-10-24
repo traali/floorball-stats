@@ -264,6 +264,7 @@ async function tasoGet<T>(path: string, cacheKey?: string, ttl?: number): Promis
 /** Test hook: forget the in-memory caches. */
 export function resetSalibandyCaches() {
   memCache.clear()
+  lineupIndexMem = null
   teamIndexMem = null
   teamIndexInflight = null
 }
@@ -431,13 +432,16 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
     const homeConceded = goals.filter(g => g.team === 'away' && !g.isShootoutGoal).length
     const awayConceded = goals.filter(g => g.team === 'home' && !g.isShootoutGoal).length
 
-    const homeSavePct = homeSaves + homeConceded > 0
-      ? `${((homeSaves / (homeSaves + homeConceded)) * 100).toFixed(1)}%`
-      : '–'
-
-    const awaySavePct = awaySaves + awayConceded > 0
-      ? `${((awaySaves / (awaySaves + awayConceded)) * 100).toFixed(1)}%`
-      : '–'
+    // Saves only as TASO recorded them (torjunta events); none recorded → null, never 0.
+    // No save percentage is computed (never invent derived goalie stats).
+    const savesRecorded = saves.length > 0
+    // Goalie names from päästetty / mvvaihto when TASO sent no torjunta events.
+    for (const ev of rawEvents) {
+      if ((ev.code === 'paastetty' || ev.code === 'mvvaihto') && ev.player_name) {
+        if (ev.team === 'A' && homeGoalieName === 'Maalivahti') { homeGoalieName = ev.player_name; homeGoalieShirt = String(ev.shirt_number || '') }
+        if (ev.team === 'B' && awayGoalieName === 'Maalivahti') { awayGoalieName = ev.player_name; awayGoalieShirt = String(ev.shirt_number || '') }
+      }
+    }
 
     const periods: SalibandyPeriodScore[] = []
     const pushPeriod = (period: 1 | 2 | 3, rawHome: unknown, rawAway: unknown) => {
@@ -509,16 +513,14 @@ export async function fetchSalibandyMatch(matchId: string): Promise<SalibandyMat
         home: {
           goalieName: homeGoalieName,
           shirtNumber: homeGoalieShirt || undefined,
-          saves: homeSaves,
+          saves: savesRecorded ? homeSaves : null,
           goalsConceded: homeConceded,
-          savePercentage: homeSavePct,
         },
         away: {
           goalieName: awayGoalieName,
           shirtNumber: awayGoalieShirt || undefined,
-          saves: awaySaves,
+          saves: savesRecorded ? awaySaves : null,
           goalsConceded: awayConceded,
-          savePercentage: awaySavePct,
         },
       },
       totalEvents: rawEvents.length,
@@ -1222,6 +1224,8 @@ export interface SearchOptions {
   favoriteClubIds?: string[]
   /** Skip the live-lineup fallback for bare names. */
   skipLiveLineups?: boolean
+  /** Streamed partial results while the slow lineup scan runs. */
+  onPartial?: (r: SearchResult) => void
 }
 
 export interface SearchResult {
@@ -1551,7 +1555,9 @@ export async function searchSalibandy(query: string, opts: SearchOptions = {}): 
   // played right now, which TASO sends with getMatch. Only live/break games of
   // today, so it stays a few dozen cached calls.
   if (playerHits.length === 0 && tokens.length >= 2 && !opts.skipLiveLineups) {
-    const live = await searchLiveLineups(tokens).catch(() => [] as DiscoveryHit[])
+    const base = [...hits]
+    const pc = playerClubs.map(({ club }) => ({ clubId: club.clubId, name: club.abbreviation || club.name }))
+    const live = await searchLiveLineups(tokens, undefined, opts.onPartial ? (found) => opts.onPartial!({ hits: [...base, ...found], playerClubs: pc }) : undefined).catch(() => [] as DiscoveryHit[])
     hits.push(...live)
   }
 
@@ -1586,64 +1592,92 @@ export async function searchSalibandy(query: string, opts: SearchOptions = {}): 
 }
 
 const MAX_LIVE_LINEUP_GAMES = 200
+const LINEUP_WORKERS = 24
+export const LINEUP_INDEX_KEY = 'floorball.lineupIndex.v1'
+
+/** Slim, final lineup of a played game: enough to answer a name search without getMatch. */
+type SlimGame = { a: string; b: string; ai: string; bi: string; sc: string; cat: string; p: [string, string, string, 0 | 1][] }
+let lineupIndexMem: { day: string; games: Record<string, SlimGame> } | null = null
+function lineupIndex(day: string): Record<string, SlimGame> {
+  if (lineupIndexMem?.day === day) return lineupIndexMem.games
+  let games: Record<string, SlimGame> = {}
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LINEUP_INDEX_KEY) : null
+    const parsed = raw ? JSON.parse(raw) : null
+    if (parsed?.day === day && parsed.games) games = parsed.games
+  } catch { /* ignore */ }
+  lineupIndexMem = { day, games }
+  return games
+}
+function saveLineupIndex() {
+  try { if (lineupIndexMem && typeof localStorage !== 'undefined') localStorage.setItem(LINEUP_INDEX_KEY, JSON.stringify(lineupIndexMem)) } catch { /* quota: memory only */ }
+}
+export function resetLineupIndex() { lineupIndexMem = null }
 
 /** Players whose names match every token, from the lineups of today's games that
  *  have started (live, break or already played), so a player stays findable after
- *  the final whistle. */
-export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDateISO()): Promise<DiscoveryHit[]> {
+ *  the final whistle. Played lineups are final and kept for the day in localStorage,
+ *  so repeat searches only refetch live games. `onHit` streams hits as they are found. */
+export async function searchLiveLineups(tokens: string[], todayIso = helsinkiDateISO(), onHit?: (hits: DiscoveryHit[]) => void): Promise<DiscoveryHit[]> {
   const day = await tasoGet<{ matches?: any[] }>(`getMatches?date=${todayIso}`, `getMatches:date:${todayIso}`, 60_000)
-  const live = (day?.matches || [])
+  const started = (day?.matches || [])
     .filter((m) => ['live', 'break', 'played'].includes(String(m?.status || '').toLowerCase()))
-    // Games on the floor first, then the most recently started played games.
     .sort((a, b) => Number(String(b.status).toLowerCase() !== 'played') - Number(String(a.status).toLowerCase() !== 'played') || String(b.time || '').localeCompare(String(a.time || '')))
     .slice(0, MAX_LIVE_LINEUP_GAMES)
+  const index = lineupIndex(todayIso)
   const hits: DiscoveryHit[] = []
   const matchHits: DiscoveryHit[] = []
   const seen = new Set<string>()
-  const queue = [...live]
+  const emit = () => onHit?.([...hits, ...matchHits])
+
+  const consider = (id: string, g: SlimGame, played: boolean, state: string) => {
+    let found = false
+    for (const [pid, name, shirt, side] of g.p) {
+      const hay = normalizeSearch(name)
+      if (!pid || seen.has(pid) || !tokens.every((t) => hay.includes(t))) continue
+      seen.add(pid); found = true
+      if (!seen.has(`m${id}`)) {
+        seen.add(`m${id}`)
+        matchHits.push({ kind: 'match', id, title: `${g.a} – ${g.b}`, subtitle: [g.sc, played ? 'Pelattu' : state === 'break' ? 'Erätauko' : 'Käynnissä', g.cat].filter(Boolean).join(' · ') })
+      }
+      hits.push({
+        kind: 'player', id: pid, title: name, shirtNumber: shirt || undefined,
+        subtitle: [side ? g.b : g.a, `${played ? 'pelasi tänään' : 'pelaa nyt'}: ${g.a} – ${g.b}`].filter(Boolean).join(' · '),
+        teamId: numericId(side ? g.bi : g.ai), matchId: numericId(id),
+      })
+    }
+    if (found) emit()
+  }
+
+  const queue: any[] = []
+  for (const m of started) {
+    const id = str(m.match_id)
+    const played = String(m.status).toLowerCase() === 'played'
+    if (played && index[id]) consider(id, index[id], true, 'played') // cached final lineup: no request
+    else queue.push(m)
+  }
+  let dirty = false
   const worker = async () => {
     for (let m = queue.shift(); m; m = queue.shift()) {
       const id = str(m.match_id)
-      // A played game's lineup is final: cache it longer than a live one.
       const ttl = String(m.status).toLowerCase() === 'played' ? 15 * 60_000 : 60_000
       const data = await tasoGet<{ match?: any }>(`getMatch?match_id=${id}`, `getMatch:${id}`, ttl).catch(() => null)
       const mm = data?.match
       if (!mm) continue
       const { home, away } = extractMatchRosters(mm)
-      for (const [list, teamName, teamId] of [
-        [home, str(mm.team_A_name), str(mm.team_A_id)],
-        [away, str(mm.team_B_name), str(mm.team_B_id)],
-      ] as const) {
-        for (const p of list) {
-          const hay = normalizeSearch(p.fullName)
-          if (!p.playerId || seen.has(p.playerId) || !tokens.every((t) => hay.includes(t))) continue
-          seen.add(p.playerId)
-          if (!seen.has(`m${id}`)) {
-            seen.add(`m${id}`)
-            const sc = tasoScore(mm)
-            matchHits.push({
-              kind: 'match',
-              id,
-              title: `${str(mm.team_A_name)} – ${str(mm.team_B_name)}`,
-              subtitle: [sc ? `${sc.home}–${sc.away}` : '', String(mm.status).toLowerCase() === 'played' ? 'Pelattu' : matchState(mm) === 'break' ? 'Erätauko' : 'Käynnissä', str(mm.category_name)].filter(Boolean).join(' · '),
-            })
-          }
-          hits.push({
-            kind: 'player',
-            id: p.playerId,
-            title: p.fullName,
-            shirtNumber: p.shirtNumber || undefined,
-            subtitle: [teamName, `${String(mm.status).toLowerCase() === 'played' ? 'pelasi tänään' : 'pelaa nyt'}: ${str(mm.team_A_name)} – ${str(mm.team_B_name)}`]
-              .filter(Boolean)
-              .join(' · '),
-            teamId: numericId(teamId),
-            matchId: numericId(id),
-          })
-        }
+      const sc = tasoScore(mm)
+      const g: SlimGame = {
+        a: str(mm.team_A_name), b: str(mm.team_B_name), ai: str(mm.team_A_id), bi: str(mm.team_B_id),
+        sc: sc ? `${sc.home}–${sc.away}` : '', cat: str(mm.category_name),
+        p: [...home.map((p) => [p.playerId, p.fullName, p.shirtNumber || '', 0] as [string, string, string, 0]), ...away.map((p) => [p.playerId, p.fullName, p.shirtNumber || '', 1] as [string, string, string, 1])],
       }
+      const played = String(mm.status).toLowerCase() === 'played'
+      if (played && g.p.length > 0) { index[id] = g; dirty = true }
+      consider(id, g, played, matchState(mm))
     }
   }
-  await Promise.all(Array.from({ length: 16 }, worker))
+  await Promise.all(Array.from({ length: LINEUP_WORKERS }, worker))
+  if (dirty) saveLineupIndex()
   return [...hits, ...matchHits]
 }
 
