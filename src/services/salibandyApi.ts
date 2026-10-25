@@ -50,8 +50,8 @@ export function floorballScore(
 const API_BASE = 'https://salibandy-api.torneopal.net/taso/rest'
 // Public key the official tulospalvelu.salibandy.fi front end uses. It rides in
 // Accept (a CORS-safelisted header, so no preflight). Torneopal also wants a
-// Referer, which the browser sends on its own. The shared taso-proxy Worker got
-// upstream 403 on every uncached salibandy call, so it is no longer tried.
+// Referer, which the browser sends on its own. The shared taso-proxy Worker (retired
+// 2026-10-25) got upstream 403 on every call; direct signed fetch only.
 const SALIBANDY_KEY = 'zsn3anknxzcfzc23k53jqdcd4pymutsf'
 
 const reqHeaders = {
